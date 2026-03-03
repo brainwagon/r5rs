@@ -37,7 +37,7 @@
 - [x] **Task 3: REPL and File Loader** [77a88f8]
   - Implement the interactive Read-Eval-Print-Loop with ANSI color support.
   - Support loading and executing Scheme files from the command line.
-- [~] **Task 4: Final Verification and Cleanup**
+- [x] **Task 4: Final Verification and Cleanup** [75d3232]
   - Perform comprehensive testing against the R5RS core requirements.
   - Run Valgrind to ensure no memory leaks and perform final refactoring.
-- [ ] **Task 5: Conductor - User Manual Verification 'Phase 3: Advanced Features and Interface' (Protocol in workflow.md)**
+- [~] **Task 5: Conductor - User Manual Verification 'Phase 3: Advanced Features and Interface' (Protocol in workflow.md)**
