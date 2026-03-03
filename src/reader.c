@@ -18,12 +18,14 @@ static void skip_whitespace(const char** input) {
 
 static Value* read_list(const char** input) {
     skip_whitespace(input);
+    if (!**input) return NULL; // Unexpected EOF
     if (**input == ')') {
         (*input)++;
         return make_nil();
     }
     
     Value* car = read_sexpr_str(input);
+    if (!car) return NULL;
     
     skip_whitespace(input);
     if (**input == '.') {
@@ -31,6 +33,7 @@ static Value* read_list(const char** input) {
         if (isspace(*next) || *next == '(' || *next == ')' || *next == ';' || *next == '\0') {
             (*input)++;
             Value* cdr = read_sexpr_str(input);
+            if (!cdr) return NULL;
             skip_whitespace(input);
             if (**input == ')') {
                 (*input)++;
@@ -40,6 +43,7 @@ static Value* read_list(const char** input) {
     }
     
     Value* cdr = read_list(input);
+    if (!cdr) return NULL;
     return make_pair(car, cdr);
 }
 
@@ -85,8 +89,11 @@ static Value* parse_numeric_atom(const char* atom) {
 }
 
 Value* read_sexpr_str(const char** input) {
-    skip_whitespace(input);
-    if (!**input) return NULL;
+    while (1) {
+        skip_whitespace(input);
+        if (!**input) return NULL;
+        break; 
+    }
 
     char c = **input;
     if (c == '(') {

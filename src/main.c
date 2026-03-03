@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define COLOR_RESET  "\x1b[0m"
 #define COLOR_BOLD   "\x1b[1m"
@@ -36,11 +37,15 @@ static void load_file(VM* vm, const char* filename, bool silent) {
     fclose(f);
     
     const char* p = content;
-    while (*p) {
-        while (*p && (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t')) p++;
+    while (p && *p) {
+        while (*p && isspace(*p)) p++;
         if (!*p) break;
+        const char* old_p = p;
         Value* expr = read_sexpr_str(&p);
-        if (!expr) break;
+        if (!expr) {
+            if (p == old_p) p++; // Ensure advancement
+            continue;
+        }
         Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
         Value* result = vm_run(vm, proto);
         if (!silent) {
@@ -54,17 +59,37 @@ static void load_file(VM* vm, const char* filename, bool silent) {
 
 static void repl(VM* vm) {
     char line[4096];
+    char* buffer = NULL;
+    size_t buffer_size = 0;
     welcome();
     while (1) {
-        printf(COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET);
+        if (buffer == NULL || buffer[0] == '\0') {
+            printf(COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET);
+        } else {
+            printf(COLOR_BOLD COLOR_GREEN "     > " COLOR_RESET);
+        }
+        
         if (!fgets(line, sizeof(line), stdin)) break;
         
-        const char* p = line;
-        while (*p) {
-            while (*p && (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t')) p++;
+        size_t line_len = strlen(line);
+        buffer = realloc(buffer, buffer_size + line_len + 1);
+        strcpy(buffer + buffer_size, line);
+        buffer_size += line_len;
+        
+        const char* p = buffer;
+        while (p && *p) {
+            while (*p && isspace(*p)) p++;
             if (!*p) break;
+            
+            const char* start_p = p;
             Value* expr = read_sexpr_str(&p);
-            if (!expr) break;
+            if (!expr) {
+                // If we couldn't parse but p advanced, it's a partial expression or comment
+                // If it's a partial expression (like "(define x"), we need more input
+                // Reset p to start_p so we keep the partial content in buffer
+                p = start_p;
+                break;
+            }
             
             Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
             Value* result = vm_run(vm, proto);
@@ -74,8 +99,15 @@ static void repl(VM* vm) {
             printf(COLOR_RESET "\n");
             
             gc_collect();
+            
+            // Move the remaining unparsed content to the front of the buffer
+            size_t remaining = strlen(p);
+            memmove(buffer, p, remaining + 1);
+            buffer_size = remaining;
+            p = buffer;
         }
     }
+    free(buffer);
     printf("\nGoodbye!\n");
 }
 
