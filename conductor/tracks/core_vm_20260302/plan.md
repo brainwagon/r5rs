@@ -22,11 +22,11 @@
   - Implement the S-expression parser (Lexer and Parser).
   - Implement the recursive compiler to generate bytecode for basic expressions.
   - Support lexical environment management (nested scopes).
-- [~] **Task 3: VM Execution Engine**
+- [x] **Task 3: VM Execution Engine** [e3e4c24]
   - Implement the VM interpreter loop (dispatch loop).
   - Support stack operations and procedure calls.
   - Implement Tail Call Optimization (TCO).
-- [ ] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)**
+- [~] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)**
 
 ## Phase 3: Advanced Features and Interface
 - [ ] **Task 1: First-Class Continuations**
