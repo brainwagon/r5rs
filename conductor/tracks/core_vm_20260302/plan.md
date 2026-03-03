@@ -29,10 +29,10 @@
 - [x] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)** [b6d47bd]
 
 ## Phase 3: Advanced Features and Interface
-- [ ] **Task 1: First-Class Continuations**
+- [x] **Task 1: First-Class Continuations** [15aca19]
   - Implement continuation capture and re-invocation (`call/cc`).
   - Update the stack and VM state to handle non-local control flow.
-- [ ] **Task 2: Built-in Procedures**
+- [~] **Task 2: Built-in Procedures**
   - Implement essential R5RS primitives (Arithmetic, List manipulation, Predicates).
 - [ ] **Task 3: REPL and File Loader**
   - Implement the interactive Read-Eval-Print-Loop with ANSI color support.
