@@ -1,0 +1,69 @@
+        -:    0:Source:src/values.c
+        -:    1:#define _POSIX_C_SOURCE 200809L
+        -:    2:#include <scheme.h>
+        -:    3:#include <stdlib.h>
+        -:    4:#include <string.h>
+        -:    5:
+        3:    6:Value* make_fixnum(long n) {
+        3:    7:    Value* v = gc_alloc(VAL_FIXNUM);
+        3:    8:    if (v) {
+        3:    9:        v->as.fixnum = n;
+        -:   10:    }
+        3:   11:    return v;
+        -:   12:}
+        -:   13:
+        2:   14:Value* make_boolean(bool b) {
+        2:   15:    Value* v = gc_alloc(VAL_BOOLEAN);
+        2:   16:    if (v) {
+        2:   17:        v->as.boolean = b;
+        -:   18:    }
+        2:   19:    return v;
+        -:   20:}
+        -:   21:
+        1:   22:Value* make_nil(void) {
+        1:   23:    return gc_alloc(VAL_NIL);
+        -:   24:}
+        -:   25:
+        -:   26:static Value* symbol_registry = NULL;
+        -:   27:
+        3:   28:Value* make_symbol(const char* name) {
+        3:   29:    if (!symbol_registry) {
+        1:   30:        gc_add_root(&symbol_registry);
+        -:   31:    }
+        3:   32:    Value* current = symbol_registry;
+        4:   33:    while (current) {
+        2:   34:        Value* sym = current->as.pair.car;
+        2:   35:        if (strcmp(sym->as.symbol, name) == 0) {
+        1:   36:            return sym;
+        -:   37:        }
+        1:   38:        current = current->as.pair.cdr;
+        -:   39:    }
+        -:   40:
+        2:   41:    Value* v = gc_alloc(VAL_SYMBOL);
+        2:   42:    if (v) {
+        2:   43:        v->as.symbol = strdup(name);
+        -:   44:        // Link it into the registry
+        2:   45:        Value* link = gc_alloc(VAL_PAIR); // Internal link
+        2:   46:        if (link) {
+        2:   47:            link->as.pair.car = v;
+        2:   48:            link->as.pair.cdr = symbol_registry;
+        2:   49:            symbol_registry = link;
+        -:   50:        }
+        -:   51:    }
+        2:   52:    return v;
+        -:   53:}
+        -:   54:
+        1:   55:Value* make_pair(Value* car, Value* cdr) {
+        1:   56:    Value* v = gc_alloc(VAL_PAIR);
+        1:   57:    if (v) {
+        1:   58:        v->as.pair.car = car;
+        1:   59:        v->as.pair.cdr = cdr;
+        -:   60:    }
+        1:   61:    return v;
+        -:   62:}
+        -:   63:
+       1*:   64:bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
+       2*:   65:bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
+       1*:   66:bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
+       2*:   67:bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
+       1*:   68:bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }

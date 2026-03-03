@@ -1,0 +1,75 @@
+        -:    0:Source:src/gc.c
+        -:    0:Graph:obj/gc.gcno
+        -:    0:Data:obj/gc.gcda
+        -:    0:Runs:8
+        -:    1:#include <scheme.h>
+        -:    2:#include <stdlib.h>
+        -:    3:#include <stdio.h>
+        -:    4:
+        -:    5:#define MAX_ROOTS 1024
+        -:    6:
+        -:    7:static Value* all_objects = NULL;
+        -:    8:static Value** roots[MAX_ROOTS];
+        -:    9:static int roots_count = 0;
+        -:   10:
+        6:   11:void gc_init(void) {
+        6:   12:    all_objects = NULL;
+        6:   13:    roots_count = 0;
+        6:   14:}
+        -:   15:
+       31:   16:Value* gc_alloc(ValueType type) {
+       31:   17:    Value* v = malloc(sizeof(Value));
+       31:   18:    if (!v) {
+        -:   19:        // In a real VM, we would trigger collection here 
+        -:   20:        // and try again, but let's keep it simple.
+    #####:   21:        perror("malloc failed");
+    #####:   22:        exit(1);
+        -:   23:    }
+       31:   24:    v->type = type;
+       31:   25:    v->marked = false;
+       31:   26:    v->next = all_objects;
+       31:   27:    all_objects = v;
+       31:   28:    return v;
+        -:   29:}
+        -:   30:
+        6:   31:void gc_add_root(Value** root) {
+        6:   32:    if (roots_count < MAX_ROOTS) {
+        6:   33:        roots[roots_count++] = root;
+        -:   34:    }
+        6:   35:}
+        -:   36:
+        6:   37:static void mark_object(Value* v) {
+       6*:   38:    if (!v || v->marked) return;
+        6:   39:    v->marked = true;
+        6:   40:    if (v->type == VAL_PAIR) {
+        1:   41:        mark_object(v->as.pair.car);
+        1:   42:        mark_object(v->as.pair.cdr);
+        -:   43:    }
+        -:   44:    // Note: Symbols use a char* string that is not a Value, 
+        -:   45:    // so we don't need to mark it, but we'll need to free it.
+        -:   46:}
+        -:   47:
+        4:   48:static void sweep(void) {
+        4:   49:    Value** p = &all_objects;
+       11:   50:    while (*p) {
+        7:   51:        if (!(*p)->marked) {
+        1:   52:            Value* unreached = *p;
+        1:   53:            *p = unreached->next;
+        -:   54:            
+        1:   55:            if (unreached->type == VAL_SYMBOL) {
+    #####:   56:                free((void*)unreached->as.symbol);
+        -:   57:            }
+        1:   58:            free(unreached);
+        -:   59:        } else {
+        6:   60:            (*p)->marked = false;
+        6:   61:            p = &((*p)->next);
+        -:   62:        }
+        -:   63:    }
+        4:   64:}
+        -:   65:
+        4:   66:void gc_collect(void) {
+        8:   67:    for (int i = 0; i < roots_count; i++) {
+        4:   68:        mark_object(*roots[i]);
+        -:   69:    }
+        4:   70:    sweep();
+        4:   71:}
