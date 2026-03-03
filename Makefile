@@ -1,6 +1,6 @@
 CC = gcc
-CFLAGS = -std=c99 -Wall -Wextra -Werror -Iinclude
-LDFLAGS =
+CFLAGS = -std=c99 -Wall -Wextra -Werror -Iinclude -fprofile-arcs -ftest-coverage
+LDFLAGS = -lgcov
 
 SRC_DIR = src
 INC_DIR = include
