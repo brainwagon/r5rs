@@ -251,7 +251,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     push(vm, result);
                 } else {
                     fprintf(stderr, "Cannot call non-procedure: ");
-                    print_value(proc);
+                    print_value(proc, true);
                     fprintf(stderr, "\n");
                     exit(1);
                 }

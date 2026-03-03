@@ -198,7 +198,13 @@ static Value* prim_null_p(VM* vm, int nargs, Value** args) {
 
 static Value* prim_display(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs >= 1) print_value(args[0]);
+    if (nargs >= 1) print_value(args[0], false);
+    return make_nil();
+}
+
+static Value* prim_write(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs >= 1) print_value(args[0], true);
     return make_nil();
 }
 
@@ -420,6 +426,77 @@ static Value* prim_memv(VM* vm, int nargs, Value** args) {
     return make_boolean(false);
 }
 
+static Value* prim_div(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs < 1) return make_fixnum(1);
+    Value* res = args[0];
+    if (nargs == 1) {
+        double v = is_real(res) ? res->as.real : (is_fixnum(res) ? (double)res->as.fixnum : bignum_to_double(res));
+        return make_real(1.0 / v);
+    }
+    for (int i = 1; i < nargs; i++) {
+        double v1 = is_real(res) ? res->as.real : (is_fixnum(res) ? (double)res->as.fixnum : bignum_to_double(res));
+        double v2 = is_real(args[i]) ? args[i]->as.real : (is_fixnum(args[i]) ? (double)args[i]->as.fixnum : bignum_to_double(args[i]));
+        res = make_real(v1 / v2);
+    }
+    return res;
+}
+
+static Value* prim_le(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs < 2) return make_boolean(true);
+    for (int i = 0; i < nargs - 1; i++) {
+        if (num_compare(args[i], args[i+1]) > 0) return make_boolean(false);
+    }
+    return make_boolean(true);
+}
+
+static Value* prim_ge(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs < 2) return make_boolean(true);
+    for (int i = 0; i < nargs - 1; i++) {
+        if (num_compare(args[i], args[i+1]) < 0) return make_boolean(false);
+    }
+    return make_boolean(true);
+}
+
+static Value* prim_quotient(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) return make_fixnum(0);
+    if (is_fixnum(args[0]) && is_fixnum(args[1])) {
+        if (args[1]->as.fixnum == 0) return make_fixnum(0);
+        return make_fixnum(args[0]->as.fixnum / args[1]->as.fixnum);
+    }
+    // Fallback to double for now
+    double v1 = is_real(args[0]) ? args[0]->as.real : (is_fixnum(args[0]) ? (double)args[0]->as.fixnum : bignum_to_double(args[0]));
+    double v2 = is_real(args[1]) ? args[1]->as.real : (is_fixnum(args[1]) ? (double)args[1]->as.fixnum : bignum_to_double(args[1]));
+    return make_fixnum((long)(v1 / v2));
+}
+
+static Value* prim_remainder(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) return make_fixnum(0);
+    if (is_fixnum(args[0]) && is_fixnum(args[1])) {
+        if (args[1]->as.fixnum == 0) return make_fixnum(0);
+        return make_fixnum(args[0]->as.fixnum % args[1]->as.fixnum);
+    }
+    return make_fixnum(0);
+}
+
+static Value* prim_modulo(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) return make_fixnum(0);
+    if (is_fixnum(args[0]) && is_fixnum(args[1])) {
+        long a = args[0]->as.fixnum;
+        long b = args[1]->as.fixnum;
+        if (b == 0) return make_fixnum(0);
+        long r = a % b;
+        if ((r > 0 && b < 0) || (r < 0 && b > 0)) r += b;
+        return make_fixnum(r);
+    }
+    return make_fixnum(0);
+}
+
 void vm_register_primitives(VM* vm) {
     // Core keywords
     set_global(vm, make_symbol("if"), make_symbol("if"));
@@ -434,9 +511,15 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
     set_global(vm, make_symbol("*"), make_primitive(prim_mul));
+    set_global(vm, make_symbol("/"), make_primitive(prim_div));
     set_global(vm, make_symbol("="), make_primitive(prim_num_eq));
     set_global(vm, make_symbol("<"), make_primitive(prim_lt));
     set_global(vm, make_symbol(">"), make_primitive(prim_gt));
+    set_global(vm, make_symbol("<="), make_primitive(prim_le));
+    set_global(vm, make_symbol(">="), make_primitive(prim_ge));
+    set_global(vm, make_symbol("quotient"), make_primitive(prim_quotient));
+    set_global(vm, make_symbol("remainder"), make_primitive(prim_remainder));
+    set_global(vm, make_symbol("modulo"), make_primitive(prim_modulo));
     set_global(vm, make_symbol("not"), make_primitive(prim_not));
     set_global(vm, make_symbol("zero?"), make_primitive(prim_zero_p));
     set_global(vm, make_symbol("cons"), make_primitive(prim_cons));
@@ -475,5 +558,6 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("char-upper-case?"), make_primitive(prim_char_upper_case_p));
     set_global(vm, make_symbol("char-lower-case?"), make_primitive(prim_char_lower_case_p));
     set_global(vm, make_symbol("display"), make_primitive(prim_display));
+    set_global(vm, make_symbol("write"), make_primitive(prim_write));
     set_global(vm, make_symbol("newline"), make_primitive(prim_newline));
 }

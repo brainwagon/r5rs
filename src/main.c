@@ -49,7 +49,7 @@ static void load_file(VM* vm, const char* filename, bool silent) {
         Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
         Value* result = vm_run(vm, proto);
         if (!silent) {
-            print_value(result);
+            print_value(result, true);
             printf("\n");
         }
         gc_collect();
@@ -95,7 +95,7 @@ static void repl(VM* vm) {
             Value* result = vm_run(vm, proto);
             
             printf(COLOR_CYAN);
-            print_value(result);
+            print_value(result, true);
             printf(COLOR_RESET "\n");
             
             gc_collect();
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
     
     if (argc > 1) {
         for (int i = 1; i < argc; i++) {
-            load_file(&vm, argv[i], false);
+            load_file(&vm, argv[i], true);
         }
     } else {
         repl(&vm);

@@ -153,23 +153,28 @@ Value* make_raw(void* p) {
     return v;
 }
 
-void print_value(Value* v) {
+void print_value(Value* v, bool quoted) {
     if (!v) { printf("NULL"); return; }
     switch (v->type) {
         case VAL_FIXNUM: printf("%ld", v->as.fixnum); break;
         case VAL_BOOLEAN: printf(v->as.boolean ? "#t" : "#f"); break;
         case VAL_CHAR:
-            if (v->as.character == '\n') printf("#\\newline");
-            else if (v->as.character == ' ') printf("#\\space");
-            else printf("#\\%c", v->as.character);
+            if (quoted) {
+                if (v->as.character == '\n') printf("#\\newline");
+                else if (v->as.character == ' ') printf("#\\space");
+                else printf("#\\%c", v->as.character);
+            } else {
+                printf("%c", v->as.character);
+            }
             break;
         case VAL_STRING:
-            printf("\"%s\"", v->as.string.str);
+            if (quoted) printf("\"%s\"", v->as.string.str);
+            else printf("%s", v->as.string.str);
             break;
         case VAL_VECTOR:
             printf("#(");
             for (int i = 0; i < v->as.vector.len; i++) {
-                print_value(v->as.vector.elements[i]);
+                print_value(v->as.vector.elements[i], quoted);
                 if (i < v->as.vector.len - 1) printf(" ");
             }
             printf(")");
@@ -187,13 +192,13 @@ void print_value(Value* v) {
         case VAL_PAIR:
             printf("(");
             while (is_pair(v)) {
-                print_value(v->as.pair.car);
+                print_value(v->as.pair.car, quoted);
                 v = v->as.pair.cdr;
                 if (is_pair(v)) printf(" ");
             }
             if (!is_nil(v)) {
                 printf(" . ");
-                print_value(v);
+                print_value(v, quoted);
             }
             printf(")");
             break;
