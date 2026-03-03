@@ -82,6 +82,15 @@ static Value* lookup_syntax(Value* syntax_env, Value* sym) {
     return NULL;
 }
 
+static int count_args(Value* params) {
+    int count = 0;
+    while (is_pair(params)) {
+        count++;
+        params = params->as.pair.cdr;
+    }
+    return count;
+}
+
 static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* syntax_env, bool tail);
 
 static void compile_body(ProtoBuilder* pb, Value* exprs, Value* env, Value* syntax_env, bool tail) {
@@ -470,25 +479,70 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             if (strcmp(name, "letrec") == 0) {
                 Value* bindings = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
-                Value* inits = make_nil();
-                Value* sets = make_nil();
+                Value* vars = make_nil();
                 Value* b = bindings;
+                while (is_pair(b)) {
+                    vars = make_pair(b->as.pair.car->as.pair.car, vars);
+                    b = b->as.pair.cdr;
+                }
+
+                // 1. Create a sub-prototype for the letrec body
+                ProtoBuilder sub_pb;
+                sub_pb.cap = 64;
+                sub_pb.code = malloc(sub_pb.cap);
+                sub_pb.len = 0;
+                sub_pb.c_cap = 16;
+                sub_pb.constants = malloc(sizeof(Value*) * sub_pb.c_cap);
+                sub_pb.c_len = 0;
+                
+                Value* new_env = make_pair(vars, env);
+
+                // Compile sets for each binding
+                b = bindings;
                 while (is_pair(b)) {
                     Value* binding = b->as.pair.car;
                     Value* var = binding->as.pair.car;
                     Value* val = binding->as.pair.cdr->as.pair.car;
-                    inits = make_pair(make_pair(var, make_pair(make_boolean(false), make_nil())), inits);
-                    sets = make_pair(make_pair(make_symbol("set!"), make_pair(var, make_pair(val, make_nil()))), sets);
+                    compile_expr(&sub_pb, val, new_env, syntax_env, false);
+                    int depth, idx;
+                    if (lookup_lexical(new_env, var, &depth, &idx)) {
+                        pb_emit(&sub_pb, OP_LSET);
+                        pb_emit(&sub_pb, (unsigned char)depth);
+                        pb_emit2(&sub_pb, idx);
+                    } else {
+                        int c_idx = pb_add_constant(&sub_pb, var);
+                        pb_emit(&sub_pb, OP_GSET);
+                        pb_emit2(&sub_pb, c_idx);
+                    }
+                    pb_emit(&sub_pb, OP_POP);
                     b = b->as.pair.cdr;
                 }
-                Value* new_body = body;
-                Value* s = sets;
-                while (is_pair(s)) {
-                    new_body = make_pair(s->as.pair.car, new_body);
-                    s = s->as.pair.cdr;
+                compile_body(&sub_pb, body, new_env, syntax_env, true);
+                
+                unsigned char* code = malloc(sub_pb.len);
+                memcpy(code, sub_pb.code, sub_pb.len);
+                Value** constants = malloc(sizeof(Value*) * sub_pb.c_len);
+                memcpy(constants, sub_pb.constants, sizeof(Value*) * sub_pb.c_len);
+                Value* sub_proto = make_proto(code, sub_pb.len, constants, sub_pb.c_len, count_args(vars), false);
+                free(sub_pb.code);
+                free(sub_pb.constants);
+
+                // 2. In outer pb, push #f for each var
+                int n = 0;
+                b = bindings;
+                while (is_pair(b)) {
+                    pb_emit(pb, OP_CONST);
+                    pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
+                    n++;
+                    b = b->as.pair.cdr;
                 }
-                Value* new_let = make_pair(make_symbol("let"), make_pair(inits, new_body));
-                compile_expr(pb, new_let, env, syntax_env, tail);
+                
+                // 3. Push closure and call it
+                int p_idx = pb_add_constant(pb, sub_proto);
+                pb_emit(pb, OP_CLOSURE);
+                pb_emit2(pb, p_idx);
+                pb_emit(pb, tail ? OP_TCALL : OP_CALL);
+                pb_emit(pb, (unsigned char)n);
                 return;
             }
             if (strcmp(name, "define") == 0) {

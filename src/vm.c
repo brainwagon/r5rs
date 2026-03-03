@@ -226,13 +226,9 @@ Value* vm_run(VM* vm, Value* top_proto) {
                         push(vm, vm->env);
                         push(vm, vm->top_proto);
                     } else { // OP_TCALL
-                        vm->top_proto = pop(vm);
-                        vm->env = pop(vm);
-                        vm->pc = (unsigned char*)pop(vm)->as.raw;
-                        
-                        push(vm, make_raw(vm->pc));
-                        push(vm, vm->env);
-                        push(vm, vm->top_proto);
+                        // We skip pushing new return info, so the NEW function will return 
+                        // to the same place the CURRENT one would.
+                        // The return info is already on the stack.
                     }
                     
                     // 3. Set up new environment

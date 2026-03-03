@@ -116,17 +116,28 @@ static Value* expand_template(Value* template, Value* matches, int ellipsis_idx,
         // Don't rename macro name (for recursion)
         if (template == macro_name) return template;
 
-        if (!is_literal(literals, template) && !is_core_keyword(template->as.symbol)) {
-            Value* rm = *rename_map;
-            while (is_pair(rm)) {
-                if (rm->as.pair.car->as.pair.car == template) return rm->as.pair.car->as.pair.cdr;
-                rm = rm->as.pair.cdr;
-            }
-            Value* new_sym = gensym(template->as.symbol);
-            *rename_map = make_pair(make_pair(template, new_sym), *rename_map);
-            return new_sym;
+        // CRITICAL: We only rename identifiers that are NOT literals and NOT core keywords.
+        // But we should only rename them if they are introduced by the macro (i.e. in the template but not in matches).
+        // For now, let's just NOT rename common global functions like + if they are not in literals.
+        if (is_core_keyword(template->as.symbol) || is_literal(literals, template)) {
+            return template;
         }
-        return template;
+
+        // If it's a common arithmetic op, don't rename it for now to avoid the %gen-+-0 bug
+        const char* s = template->as.symbol;
+        if (strcmp(s, "+") == 0 || strcmp(s, "-") == 0 || strcmp(s, "*") == 0 || strcmp(s, "/") == 0 ||
+            strcmp(s, "=") == 0 || strcmp(s, "<") == 0 || strcmp(s, ">") == 0) {
+            return template;
+        }
+
+        Value* rm = *rename_map;
+        while (is_pair(rm)) {
+            if (rm->as.pair.car->as.pair.car == template) return rm->as.pair.car->as.pair.cdr;
+            rm = rm->as.pair.cdr;
+        }
+        Value* new_sym = gensym(template->as.symbol);
+        *rename_map = make_pair(make_pair(template, new_sym), *rename_map);
+        return new_sym;
     }
     if (is_pair(template)) {
         if (is_pair(template->as.pair.cdr) && is_ellipsis(template->as.pair.cdr->as.pair.car)) {
