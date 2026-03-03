@@ -493,6 +493,12 @@ static Value* prim_symbol_to_string(VM* vm, int nargs, Value** args) {
     return make_string(args[0]->as.symbol);
 }
 
+static Value* prim_not(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1) { fprintf(stderr, "not expects 1 arg\n"); exit(1); }
+    return make_boolean(is_boolean(args[0]) && !args[0]->as.boolean);
+}
+
 void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
@@ -500,6 +506,7 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("="), make_primitive(prim_num_eq));
     set_global(vm, make_symbol("<"), make_primitive(prim_lt));
     set_global(vm, make_symbol(">"), make_primitive(prim_gt));
+    set_global(vm, make_symbol("not"), make_primitive(prim_not));
     set_global(vm, make_symbol("zero?"), make_primitive(prim_zero_p));
     set_global(vm, make_symbol("cons"), make_primitive(prim_cons));
     set_global(vm, make_symbol("car"), make_primitive(prim_car));

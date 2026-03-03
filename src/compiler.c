@@ -490,12 +490,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
 
                 // 1. Create a sub-prototype for the letrec body
                 ProtoBuilder sub_pb;
-                sub_pb.cap = 64;
-                sub_pb.code = malloc(sub_pb.cap);
-                sub_pb.len = 0;
-                sub_pb.c_cap = 16;
-                sub_pb.constants = malloc(sizeof(Value*) * sub_pb.c_cap);
-                sub_pb.c_len = 0;
+                pb_init(&sub_pb);
                 
                 Value* new_env = make_pair(vars, env);
 
