@@ -15,7 +15,7 @@
   - Write unit tests to verify allocation and basic collection.
 - [x] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]' (Protocol in workflow.md)** [5ce6e89]
 
-## Phase 2: Virtual Machine and Compiler Core
+## Phase 2: Virtual Machine and Compiler Core [checkpoint: b6d47bd]
 - [x] **Task 1: Instruction Set Design** [78604a6]
   - Define the bytecode instruction set (Load, Store, Call, Jump, etc.).
 - [x] **Task 2: Bytecode Compiler** [febf9ad]
@@ -26,7 +26,7 @@
   - Implement the VM interpreter loop (dispatch loop).
   - Support stack operations and procedure calls.
   - Implement Tail Call Optimization (TCO).
-- [~] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)**
+- [x] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)** [b6d47bd]
 
 ## Phase 3: Advanced Features and Interface
 - [ ] **Task 1: First-Class Continuations**
