@@ -33,6 +33,9 @@ $(UNITY_OBJ): $(UNITY_SRC)
 test: $(TEST_BINS)
 	@for bin in $(TEST_BINS); do ./$$bin; done
 
+test-pervasive: $(TEST_DIR)/test_pervasive
+	./$<
+
 $(TEST_DIR)/%: $(TEST_DIR)/%.c $(filter-out $(OBJ_DIR)/main.o, $(OBJS)) $(UNITY_OBJ)
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) $^ -o $@ $(LDFLAGS)
 
