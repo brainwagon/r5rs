@@ -30,8 +30,6 @@ void gc_set_stack_root(Value*** stack, int* sp) {
 }
 
 Value* gc_alloc(ValueType type) {
-    // For now, let's just alloc. If we want to trigger GC frequently for testing:
-    // gc_collect(); 
     Value* v = malloc(sizeof(Value));
     if (!v) {
         perror("malloc failed");
@@ -77,6 +75,9 @@ static void mark_object(Value* v) {
         for (int i = 0; i < v->as.vector.len; i++) {
             mark_object(v->as.vector.elements[i]);
         }
+    } else if (v->type == VAL_MACRO) {
+        mark_object(v->as.macro.literals);
+        mark_object(v->as.macro.rules);
     }
 }
 

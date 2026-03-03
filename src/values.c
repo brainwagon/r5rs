@@ -61,6 +61,15 @@ Value* make_real(double d) {
     return v;
 }
 
+Value* make_macro(Value* literals, Value* rules) {
+    Value* v = gc_alloc(VAL_MACRO);
+    if (v) {
+        v->as.macro.literals = literals;
+        v->as.macro.rules = rules;
+    }
+    return v;
+}
+
 Value* make_nil(void) {
     return gc_alloc(VAL_NIL);
 }
@@ -171,6 +180,7 @@ void print_value(Value* v) {
             break;
         }
         case VAL_REAL: printf("%g", v->as.real); break;
+        case VAL_MACRO: printf("#<macro>"); break;
         case VAL_NIL: printf("()"); break;
         case VAL_SYMBOL: printf("%s", v->as.symbol); break;
         case VAL_PAIR:
@@ -201,6 +211,7 @@ bool is_string(Value* v) { return v && v->type == VAL_STRING; }
 bool is_vector(Value* v) { return v && v->type == VAL_VECTOR; }
 bool is_bignum(Value* v) { return v && v->type == VAL_BIGNUM; }
 bool is_real(Value* v) { return v && v->type == VAL_REAL; }
+bool is_macro(Value* v) { return v && v->type == VAL_MACRO; }
 bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
 bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
 bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }

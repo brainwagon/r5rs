@@ -39,6 +39,7 @@ typedef enum {
     VAL_CHAR,
     VAL_BIGNUM,
     VAL_REAL,
+    VAL_MACRO,
 } ValueType;
 
 struct VM; // Forward declaration
@@ -89,6 +90,10 @@ typedef struct Value {
             struct Value* proto;
             unsigned char* pc;
         } cont;
+        struct {
+            struct Value* literals; // List of symbols
+            struct Value* rules;    // List of (pattern . template) pairs
+        } macro;
         void* raw;
     } as;
 } Value;
@@ -100,12 +105,13 @@ Value* make_string(const char* s);
 Value* make_vector(int len, Value* fill);
 Value* make_bignum(int sign, uint32_t* digits, int len);
 Value* make_real(double d);
+Value* make_macro(Value* literals, Value* rules);
 Value* make_nil(void);
 Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
 Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args);
 Value* make_closure(Value* proto, Value* env);
-Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, Value** args));
+Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, struct Value** args));
 Value* make_continuation(struct Value** stack, int sp, struct Value* env, struct Value* proto, unsigned char* pc);
 Value* make_raw(void* p);
 
@@ -123,6 +129,7 @@ bool is_string(Value* v);
 bool is_vector(Value* v);
 bool is_bignum(Value* v);
 bool is_real(Value* v);
+bool is_macro(Value* v);
 bool is_nil(Value* v);
 bool is_symbol(Value* v);
 bool is_pair(Value* v);
