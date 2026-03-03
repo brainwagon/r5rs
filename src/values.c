@@ -106,7 +106,7 @@ Value* make_pair(Value* car, Value* cdr) {
     return v;
 }
 
-Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args) {
+Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args, bool has_rest) {
     Value* v = gc_alloc(VAL_PROTOTYPE);
     if (v) {
         v->as.proto.code = code;
@@ -114,6 +114,7 @@ Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_
         v->as.proto.constants = constants;
         v->as.proto.num_constants = num_constants;
         v->as.proto.num_args = num_args;
+        v->as.proto.has_rest = has_rest;
     }
     return v;
 }

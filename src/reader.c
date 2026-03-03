@@ -58,9 +58,6 @@ static Value* parse_numeric_atom(const char* atom) {
     if (*endptr == '\0' && (isdigit(atom[0]) || ((atom[0] == '-' || atom[0] == '+') && isdigit(atom[1])))) {
         if (errno != ERANGE) return make_fixnum(n);
     } else {
-        // Not a standard number format for strtol if it doesn't start with digit or sign+digit
-        // But strtol might parse "+" as 0? No, strtol says "If no conversion could be performed, 0 is returned".
-        // Scheme numbers must have digits.
         if (!isdigit(atom[0]) && !((atom[0] == '-' || atom[0] == '+') && isdigit(atom[1]))) return NULL;
     }
     
@@ -70,14 +67,13 @@ static Value* parse_numeric_atom(const char* atom) {
     if (*p == '-') { sign = -1; p++; }
     else if (*p == '+') { p++; }
     
-    if (!isdigit(*p)) return NULL; // Must have at least one digit
+    if (!isdigit(*p)) return NULL;
     
     Value* res = bignum_from_long(0);
     Value* ten = bignum_from_long(10);
     while (*p >= '0' && *p <= '9') {
         Value* digit = bignum_from_long(*p - '0');
-        Value* next_res = bignum_mul(res, ten);
-        res = bignum_add(next_res, digit);
+        res = bignum_add(bignum_mul(res, ten), digit);
         p++;
     }
     if (*p == '\0') {
@@ -85,7 +81,7 @@ static Value* parse_numeric_atom(const char* atom) {
         return res;
     }
     
-    return NULL; // Not a number
+    return NULL;
 }
 
 Value* read_sexpr_str(const char** input) {
@@ -120,7 +116,7 @@ Value* read_sexpr_str(const char** input) {
                 buf[len++] = **input;
                 (*input)++;
             }
-            if (len == cap) {
+            if (len >= cap - 1) {
                 cap *= 2;
                 buf = realloc(buf, cap);
             }
@@ -141,7 +137,7 @@ Value* read_sexpr_str(const char** input) {
         } else if (next == 'f') {
             (*input)++;
             return make_boolean(false);
-        } else if (next == '\\') { // Character
+        } else if (next == '\\') {
             (*input)++;
             const char* start = *input;
             int len = 0;
@@ -156,8 +152,8 @@ Value* read_sexpr_str(const char** input) {
             } else if (len == 7 && strncmp(start, "newline", 7) == 0) {
                 return make_char('\n');
             }
-            return NULL; // Invalid char
-        } else if (next == '(') { // Vector
+            return NULL;
+        } else if (next == '(') {
             (*input)++;
             Value* lst = read_list(input);
             int count = 0;
@@ -174,10 +170,8 @@ Value* read_sexpr_str(const char** input) {
             }
             return vec;
         }
-        return NULL; // Error
     }
 
-    // Number or Symbol
     const char* start = *input;
     int len = 0;
     while (**input && !isspace(**input) && **input != '(' && **input != ')' && **input != ';' && **input != '"') {

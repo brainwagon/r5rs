@@ -19,34 +19,11 @@ static void welcome(void) {
     printf("Type expressions at the prompt. Press Ctrl+D to exit.\n\n");
 }
 
-static void repl(VM* vm) {
-    char line[1024];
-    welcome();
-    while (1) {
-        printf(COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET);
-        if (!fgets(line, sizeof(line), stdin)) break;
-        
-        const char* p = line;
-        Value* expr = read_sexpr_str(&p);
-        if (!expr) continue;
-        
-        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1);
-        Value* result = vm_run(vm, proto);
-        
-        printf(COLOR_CYAN);
-        print_value(result);
-        printf(COLOR_RESET "\n");
-        
-        gc_collect();
-    }
-    printf("\nGoodbye!\n");
-}
-
-static void load_file(VM* vm, const char* filename) {
+static void load_file(VM* vm, const char* filename, bool silent) {
     FILE* f = fopen(filename, "r");
     if (!f) {
-        perror("fopen");
-        exit(1);
+        if (!silent) perror("fopen");
+        return;
     }
     
     fseek(f, 0, SEEK_END);
@@ -60,15 +37,46 @@ static void load_file(VM* vm, const char* filename) {
     
     const char* p = content;
     while (*p) {
+        while (*p && (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t')) p++;
+        if (!*p) break;
         Value* expr = read_sexpr_str(&p);
         if (!expr) break;
-        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1);
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
         Value* result = vm_run(vm, proto);
-        print_value(result);
-        printf("\n");
+        if (!silent) {
+            print_value(result);
+            printf("\n");
+        }
         gc_collect();
     }
     free(content);
+}
+
+static void repl(VM* vm) {
+    char line[4096];
+    welcome();
+    while (1) {
+        printf(COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET);
+        if (!fgets(line, sizeof(line), stdin)) break;
+        
+        const char* p = line;
+        while (*p) {
+            while (*p && (*p == ' ' || *p == '\n' || *p == '\r' || *p == '\t')) p++;
+            if (!*p) break;
+            Value* expr = read_sexpr_str(&p);
+            if (!expr) break;
+            
+            Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
+            Value* result = vm_run(vm, proto);
+            
+            printf(COLOR_CYAN);
+            print_value(result);
+            printf(COLOR_RESET "\n");
+            
+            gc_collect();
+        }
+    }
+    printf("\nGoodbye!\n");
 }
 
 int main(int argc, char** argv) {
@@ -78,9 +86,12 @@ int main(int argc, char** argv) {
     vm_register_primitives(&vm);
     global_vm_ptr = &vm;
     
+    // Load prelude
+    load_file(&vm, "prelude.scm", true);
+    
     if (argc > 1) {
         for (int i = 1; i < argc; i++) {
-            load_file(&vm, argv[i]);
+            load_file(&vm, argv[i], false);
         }
     } else {
         repl(&vm);

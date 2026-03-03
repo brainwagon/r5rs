@@ -3,6 +3,6 @@
 
 #include <scheme.h>
 
-Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args);
+Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args, bool has_rest);
 
 #endif /* COMPILER_H */

@@ -25,7 +25,7 @@ static void push(VM* vm, Value* v) {
 
 static Value* pop(VM* vm) {
     if (vm->sp == 0) {
-        fprintf(stderr, "Stack underflow at PC offset %ld\n", vm->pc - vm->top_proto->as.proto.code);
+        fprintf(stderr, "Stack underflow at PC offset %ld\n", (long)(vm->pc - vm->top_proto->as.proto.code));
         exit(1);
     }
     return vm->stack[--vm->sp];
@@ -63,6 +63,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
 
     while (vm->running) {
         OpCode op = (OpCode)(*vm->pc++);
+        int nargs = 0;
         switch (op) {
             case OP_HALT:
                 vm->running = false;
@@ -81,7 +82,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 for (int d = 0; d < depth; d++) e = e->as.pair.cdr;
                 Value* frame = e->as.pair.car;
                 for (int i = 0; i < idx; i++) frame = frame->as.pair.cdr;
-                push(vm, frame->as.pair.car);
+                push(vm, is_pair(frame) ? frame->as.pair.car : frame);
                 break;
             }
             case OP_LSET: {
@@ -93,8 +94,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 for (int d = 0; d < depth; d++) e = e->as.pair.cdr;
                 Value* frame = e->as.pair.car;
                 for (int i = 0; i < idx; i++) frame = frame->as.pair.cdr;
-                frame->as.pair.car = val;
-                // Scheme set! returns unspecified, but let's push NIL or result
+                if (is_pair(frame)) frame->as.pair.car = val;
                 push(vm, val);
                 break;
             }
@@ -146,8 +146,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
             case OP_CALLCC: {
                 Value* proc = pop(vm);
                 Value* cont = make_continuation(vm->stack, vm->sp, vm->env, vm->top_proto, vm->pc);
-                
-                Value* frame = make_pair(cont, make_nil());
+                push(vm, cont);
                 if (is_primitive(proc)) {
                     Value* args[1] = {cont};
                     Value* result = proc->as.primitive(vm, 1, args);
@@ -156,8 +155,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     push(vm, make_raw(vm->pc));
                     push(vm, vm->env);
                     push(vm, vm->top_proto);
-                    
-                    vm->env = make_pair(frame, proc->as.closure.env);
+                    vm->env = make_pair(make_pair(cont, make_nil()), proc->as.closure.env);
                     vm->top_proto = proc->as.closure.proto;
                     vm->pc = vm->top_proto->as.proto.code;
                 } else {
@@ -166,21 +164,29 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 }
                 break;
             }
+            case OP_APPLY: {
+                Value* arg_list = pop(vm);
+                Value* proc = pop(vm);
+                nargs = 0;
+                Value* p = arg_list;
+                while (is_pair(p)) {
+                    push(vm, p->as.pair.car);
+                    nargs++;
+                    p = p->as.pair.cdr;
+                }
+                push(vm, proc);
+                op = OP_CALL;
+                goto execute_call;
+            }
             case OP_CALL:
             case OP_TCALL: {
-                int nargs = *vm->pc++;
+                nargs = *vm->pc++;
+            execute_call: ;
                 Value* proc = pop(vm);
                 
-                Value* frame = make_nil();
-                for (int i = 0; i < nargs; i++) frame = make_pair(pop(vm), frame);
-
                 if (is_primitive(proc)) {
                     Value** args = malloc(sizeof(Value*) * nargs);
-                    Value* p = frame;
-                    for (int i = 0; i < nargs; i++) {
-                        args[i] = p->as.pair.car;
-                        p = p->as.pair.cdr;
-                    }
+                    for (int i = nargs - 1; i >= 0; i--) args[i] = pop(vm);
                     Value* result = proc->as.primitive(vm, nargs, args);
                     free(args);
                     if (op == OP_TCALL) {
@@ -190,20 +196,52 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     }
                     push(vm, result);
                 } else if (is_closure(proc)) {
+                    Value* proto = proc->as.closure.proto;
+                    if (proto->as.proto.has_rest) {
+                        int fixed = proto->as.proto.num_args;
+                        int rest_count = nargs - fixed;
+                        Value* r = make_nil();
+                        for (int i = 0; i < rest_count; i++) {
+                            Value* v = pop(vm);
+                            push(vm, r); // protect r for GC
+                            r = make_pair(v, r);
+                            pop(vm); // remove old r
+                        }
+                        push(vm, r);
+                        nargs = fixed + 1;
+                    }
+                    
+                    // 1. Pop arguments into a frame FIRST
+                    Value* frame = make_nil();
+                    for (int i = 0; i < nargs; i++) {
+                        Value* v = pop(vm);
+                        push(vm, frame); // protect frame for GC
+                        frame = make_pair(v, frame);
+                        pop(vm); // remove old frame
+                    }
+
+                    // 2. Handle return information
                     if (op == OP_CALL) {
                         push(vm, make_raw(vm->pc));
                         push(vm, vm->env);
                         push(vm, vm->top_proto);
+                    } else { // OP_TCALL
+                        vm->top_proto = pop(vm);
+                        vm->env = pop(vm);
+                        vm->pc = (unsigned char*)pop(vm)->as.raw;
+                        
+                        push(vm, make_raw(vm->pc));
+                        push(vm, vm->env);
+                        push(vm, vm->top_proto);
                     }
+                    
+                    // 3. Set up new environment
                     vm->env = make_pair(frame, proc->as.closure.env);
-                    vm->top_proto = proc->as.closure.proto;
+                    vm->top_proto = proto;
                     vm->pc = vm->top_proto->as.proto.code;
                 } else if (is_continuation(proc)) {
-                    if (nargs != 1) {
-                        fprintf(stderr, "Continuation expects 1 argument\n");
-                        exit(1);
-                    }
-                    Value* result = frame->as.pair.car;
+                    if (nargs != 1) { fprintf(stderr, "Continuation expects 1 argument\n"); exit(1); }
+                    Value* result = pop(vm);
                     vm->sp = proc->as.cont.sp;
                     memcpy(vm->stack, proc->as.cont.stack, sizeof(Value*) * vm->sp);
                     vm->env = proc->as.cont.env;
@@ -211,7 +249,9 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     vm->pc = proc->as.cont.pc;
                     push(vm, result);
                 } else {
-                    fprintf(stderr, "Cannot call non-procedure\n");
+                    fprintf(stderr, "Cannot call non-procedure: ");
+                    print_value(proc);
+                    fprintf(stderr, "\n");
                     exit(1);
                 }
                 break;

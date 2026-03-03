@@ -62,6 +62,11 @@ static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
             frame = frame->as.pair.cdr;
             i++;
         }
+        if (is_symbol(frame) && frame == sym) {
+            *depth = d;
+            *index = i;
+            return true;
+        }
         env = env->as.pair.cdr;
         d++;
     }
@@ -513,7 +518,6 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 }
             }
             if (strcmp(name, "let-syntax") == 0 || strcmp(name, "letrec-syntax") == 0) {
-                bool is_rec = (strcmp(name, "letrec-syntax") == 0);
                 Value* bindings = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
                 Value* new_syntax_env = syntax_env;
@@ -529,7 +533,6 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     b = b->as.pair.cdr;
                 }
                 compile_body(pb, body, env, new_syntax_env, tail);
-                (void)is_rec; // TODO: implement rec expansion
                 return;
             }
             if (strcmp(name, "set!") == 0) {
@@ -549,6 +552,15 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
+            if (strcmp(name, "apply") == 0) {
+                Value* proc_expr = expr->as.pair.cdr->as.pair.car;
+                Value* arg_list_expr = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                compile_expr(pb, proc_expr, env, syntax_env, false);
+                compile_expr(pb, arg_list_expr, env, syntax_env, false);
+                pb_emit(pb, OP_APPLY);
+                if (tail) pb_emit(pb, OP_RET);
+                return;
+            }
             if (strcmp(name, "begin") == 0) {
                 compile_body(pb, expr->as.pair.cdr, env, syntax_env, tail);
                 return;
@@ -557,10 +569,17 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 Value* params = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
                 int num_args = 0;
+                bool has_rest = false;
                 Value* p = params;
-                while (is_pair(p)) { num_args++; p = p->as.pair.cdr; }
+                while (is_pair(p)) {
+                    num_args++;
+                    p = p->as.pair.cdr;
+                }
+                if (is_symbol(p)) {
+                    has_rest = true;
+                }
                 Value* new_env = make_pair(params, env);
-                Value* proto = compile(body, new_env, syntax_env, num_args);
+                Value* proto = compile(body, new_env, syntax_env, num_args, has_rest);
                 int idx = pb_add_constant(pb, proto);
                 pb_emit(pb, OP_CLOSURE);
                 pb_emit2(pb, idx);
@@ -589,7 +608,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
     }
 }
 
-Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args) {
+Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args, bool has_rest) {
     ProtoBuilder pb;
     pb_init(&pb);
     bool is_lambda = (num_args >= 0);
@@ -603,7 +622,7 @@ Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args) {
     memcpy(code, pb.code, pb.len);
     Value** constants = malloc(sizeof(Value*) * pb.c_len);
     memcpy(constants, pb.constants, sizeof(Value*) * pb.c_len);
-    Value* proto = make_proto(code, pb.len, constants, pb.c_len, (is_lambda ? num_args : 0));
+    Value* proto = make_proto(code, pb.len, constants, pb.c_len, (is_lambda ? num_args : 0), has_rest);
     free(pb.code);
     free(pb.constants);
     return proto;

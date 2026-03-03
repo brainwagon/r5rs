@@ -16,7 +16,7 @@ void test_make_proto(void) {
     constants[0] = make_fixnum(42);
     constants[1] = make_boolean(true);
     
-    Value* proto = make_proto(code, 5, constants, 2, 1);
+    Value* proto = make_proto(code, 5, constants, 2, 1, false);
     TEST_ASSERT_NOT_NULL(proto);
     TEST_ASSERT_EQUAL(VAL_PROTOTYPE, proto->type);
     TEST_ASSERT_EQUAL(code, proto->as.proto.code);
@@ -28,7 +28,7 @@ void test_make_proto(void) {
 }
 
 void test_make_closure(void) {
-    Value* proto = make_proto(NULL, 0, NULL, 0, 0);
+    Value* proto = make_proto(NULL, 0, NULL, 0, 0, false);
     Value* env = make_nil();
     Value* closure = make_closure(proto, env);
     
@@ -56,7 +56,7 @@ void test_make_continuation(void) {
     Value* v1 = make_fixnum(1);
     Value* stack[1] = {v1};
     Value* env = make_nil();
-    Value* proto = make_proto(NULL, 0, NULL, 0, 0);
+    Value* proto = make_proto(NULL, 0, NULL, 0, 0, false);
     unsigned char* pc = (unsigned char*)0x1234;
     
     Value* cont = make_continuation(stack, 1, env, proto, pc);

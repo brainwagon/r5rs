@@ -1,0 +1,24 @@
+# Binaries
+scheme
+tests/test_bignum
+tests/test_compiler
+tests/test_gc
+tests/test_macro
+tests/test_reader
+tests/test_scaffold
+tests/test_symbols
+tests/test_values
+tests/test_vm
+tests/test_vm_data
+
+# Objects
+obj/
+*.o
+
+# Coverage
+*.gcda
+*.gcno
+*.gcov
+
+# OS
+.DS_Store

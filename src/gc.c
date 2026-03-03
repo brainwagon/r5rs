@@ -55,29 +55,38 @@ int gc_get_object_count(void) {
 static void mark_object(Value* v) {
     if (!v || v->marked) return;
     v->marked = true;
-    if (v->type == VAL_PAIR) {
-        mark_object(v->as.pair.car);
-        mark_object(v->as.pair.cdr);
-    } else if (v->type == VAL_PROTOTYPE) {
-        for (int i = 0; i < v->as.proto.num_constants; i++) {
-            mark_object(v->as.proto.constants[i]);
-        }
-    } else if (v->type == VAL_CLOSURE) {
-        mark_object(v->as.closure.proto);
-        mark_object(v->as.closure.env);
-    } else if (v->type == VAL_CONTINUATION) {
-        for (int i = 0; i < v->as.cont.sp; i++) {
-            mark_object(v->as.cont.stack[i]);
-        }
-        mark_object(v->as.cont.env);
-        mark_object(v->as.cont.proto);
-    } else if (v->type == VAL_VECTOR) {
-        for (int i = 0; i < v->as.vector.len; i++) {
-            mark_object(v->as.vector.elements[i]);
-        }
-    } else if (v->type == VAL_MACRO) {
-        mark_object(v->as.macro.literals);
-        mark_object(v->as.macro.rules);
+    switch (v->type) {
+        case VAL_PAIR:
+            mark_object(v->as.pair.car);
+            mark_object(v->as.pair.cdr);
+            break;
+        case VAL_PROTOTYPE:
+            for (int i = 0; i < v->as.proto.num_constants; i++) {
+                mark_object(v->as.proto.constants[i]);
+            }
+            break;
+        case VAL_CLOSURE:
+            mark_object(v->as.closure.proto);
+            mark_object(v->as.closure.env);
+            break;
+        case VAL_CONTINUATION:
+            for (int i = 0; i < v->as.cont.sp; i++) {
+                mark_object(v->as.cont.stack[i]);
+            }
+            mark_object(v->as.cont.env);
+            mark_object(v->as.cont.proto);
+            break;
+        case VAL_VECTOR:
+            for (int i = 0; i < v->as.vector.len; i++) {
+                mark_object(v->as.vector.elements[i]);
+            }
+            break;
+        case VAL_MACRO:
+            mark_object(v->as.macro.literals);
+            mark_object(v->as.macro.rules);
+            break;
+        default:
+            break;
     }
 }
 

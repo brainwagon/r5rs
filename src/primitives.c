@@ -5,22 +5,21 @@
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
+#include <ctype.h>
 
 static Value* num_add(Value* a, Value* b) {
     if (is_fixnum(a) && is_fixnum(b)) {
         long va = a->as.fixnum;
         long vb = b->as.fixnum;
         long res = va + vb;
-        // Overflow check
         if (((va ^ res) & (vb ^ res)) < 0) {
             return bignum_add(bignum_from_long(va), bignum_from_long(vb));
         }
         return make_fixnum(res);
     }
     if (is_real(a) || is_real(b)) {
-        double va = is_real(a) ? a->as.real : (is_fixnum(a) ? (double)a->as.fixnum : 0.0); // Bignum to double?
+        double va = is_real(a) ? a->as.real : (is_fixnum(a) ? (double)a->as.fixnum : 0.0);
         double vb = is_real(b) ? b->as.real : (is_fixnum(b) ? (double)b->as.fixnum : 0.0);
-        // TODO: Bignum to double conversion
         return make_real(va + vb);
     }
     Value* ba = is_bignum(a) ? a : bignum_from_long(a->as.fixnum);
@@ -159,7 +158,12 @@ static Value* prim_car(VM* vm, int nargs, Value** args) {
 
 static Value* prim_cdr(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 1 || !is_pair(args[0])) { fprintf(stderr, "cdr expects a pair\n"); exit(1); }
+    if (nargs != 1 || !is_pair(args[0])) { 
+        fprintf(stderr, "cdr expects a pair, got: ");
+        print_value(nargs == 1 ? args[0] : NULL);
+        fprintf(stderr, "\n");
+        exit(1); 
+    }
     return args[0]->as.pair.cdr;
 }
 
@@ -208,6 +212,12 @@ static Value* prim_make_string(VM* vm, int nargs, Value** args) {
     return str;
 }
 
+static Value* prim_string_length(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_string(args[0])) { fprintf(stderr, "string-length expects a string\n"); exit(1); }
+    return make_fixnum(args[0]->as.string.len);
+}
+
 static Value* prim_string_ref(VM* vm, int nargs, Value** args) {
     (void)vm;
     if (nargs != 2 || !is_string(args[0]) || !is_fixnum(args[1])) { fprintf(stderr, "string-ref expects a string and an index\n"); exit(1); }
@@ -231,6 +241,12 @@ static Value* prim_make_vector(VM* vm, int nargs, Value** args) {
     int len = args[0]->as.fixnum;
     Value* fill = (nargs == 2) ? args[1] : make_nil();
     return make_vector(len, fill);
+}
+
+static Value* prim_vector_length(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_vector(args[0])) { fprintf(stderr, "vector-length expects a vector\n"); exit(1); }
+    return make_fixnum(args[0]->as.vector.len);
 }
 
 static Value* prim_vector_ref(VM* vm, int nargs, Value** args) {
@@ -293,6 +309,120 @@ static Value* prim_memv(VM* vm, int nargs, Value** args) {
     return make_boolean(false);
 }
 
+static Value* prim_quotient(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2 || !is_fixnum(args[0]) || !is_fixnum(args[1])) {
+        fprintf(stderr, "quotient expects 2 fixnums\n");
+        exit(1);
+    }
+    return make_fixnum(args[0]->as.fixnum / args[1]->as.fixnum);
+}
+
+static Value* prim_remainder(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2 || !is_fixnum(args[0]) || !is_fixnum(args[1])) {
+        fprintf(stderr, "remainder expects 2 fixnums\n");
+        exit(1);
+    }
+    return make_fixnum(args[0]->as.fixnum % args[1]->as.fixnum);
+}
+
+static Value* prim_modulo(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2 || !is_fixnum(args[0]) || !is_fixnum(args[1])) {
+        fprintf(stderr, "modulo expects 2 fixnums\n");
+        exit(1);
+    }
+    long n1 = args[0]->as.fixnum;
+    long n2 = args[1]->as.fixnum;
+    long rem = n1 % n2;
+    if ((rem > 0 && n2 < 0) || (rem < 0 && n2 > 0)) rem += n2;
+    return make_fixnum(rem);
+}
+
+static Value* prim_procedure_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1) return make_boolean(false);
+    ValueType t = args[0]->type;
+    return make_boolean(t == VAL_CLOSURE || t == VAL_PRIMITIVE || t == VAL_CONTINUATION);
+}
+
+static Value* prim_char_to_integer(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_char(args[0])) {
+        fprintf(stderr, "char->integer expects a char\n");
+        exit(1);
+    }
+    return make_fixnum((unsigned char)args[0]->as.character);
+}
+
+static Value* prim_integer_to_char(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_fixnum(args[0])) {
+        fprintf(stderr, "integer->char expects an integer\n");
+        exit(1);
+    }
+    return make_char((char)args[0]->as.fixnum);
+}
+
+static Value* prim_char_upcase(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_char(args[0])) { fprintf(stderr, "char-upcase expects a char\n"); exit(1); }
+    return make_char(toupper((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_downcase(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_char(args[0])) { fprintf(stderr, "char-downcase expects a char\n"); exit(1); }
+    return make_char(tolower((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_alphabetic_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]) && isalpha((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_numeric_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]) && isdigit((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_whitespace_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]) && isspace((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_upper_case_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]) && isupper((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_char_lower_case_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]) && islower((unsigned char)args[0]->as.character));
+}
+
+static Value* prim_display(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1) { fprintf(stderr, "display expects 1 arg\n"); exit(1); }
+    if (is_string(args[0])) printf("%s", args[0]->as.string.str);
+    else print_value(args[0]);
+    return make_nil();
+}
+
+static Value* prim_write(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1) { fprintf(stderr, "write expects 1 arg\n"); exit(1); }
+    print_value(args[0]);
+    return make_nil();
+}
+
+static Value* prim_newline(VM* vm, int nargs, Value** args) {
+    (void)vm; (void)nargs; (void)args;
+    printf("\n");
+    return make_nil();
+}
+
 void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
@@ -312,9 +442,11 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("null?"), make_primitive(prim_null_p));
     
     set_global(vm, make_symbol("make-string"), make_primitive(prim_make_string));
+    set_global(vm, make_symbol("string-length"), make_primitive(prim_string_length));
     set_global(vm, make_symbol("string-ref"), make_primitive(prim_string_ref));
     set_global(vm, make_symbol("string-set!"), make_primitive(prim_string_set));
     set_global(vm, make_symbol("make-vector"), make_primitive(prim_make_vector));
+    set_global(vm, make_symbol("vector-length"), make_primitive(prim_vector_length));
     set_global(vm, make_symbol("vector-ref"), make_primitive(prim_vector_ref));
     set_global(vm, make_symbol("vector-set!"), make_primitive(prim_vector_set));
     set_global(vm, make_symbol("char?"), make_primitive(prim_char_p));
@@ -322,4 +454,20 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("vector?"), make_primitive(prim_vector_p));
     set_global(vm, make_symbol("eqv?"), make_primitive(prim_eqv_p));
     set_global(vm, make_symbol("memv"), make_primitive(prim_memv));
+    set_global(vm, make_symbol("quotient"), make_primitive(prim_quotient));
+    set_global(vm, make_symbol("remainder"), make_primitive(prim_remainder));
+    set_global(vm, make_symbol("modulo"), make_primitive(prim_modulo));
+    set_global(vm, make_symbol("procedure?"), make_primitive(prim_procedure_p));
+    set_global(vm, make_symbol("char->integer"), make_primitive(prim_char_to_integer));
+    set_global(vm, make_symbol("integer->char"), make_primitive(prim_integer_to_char));
+    set_global(vm, make_symbol("char-upcase"), make_primitive(prim_char_upcase));
+    set_global(vm, make_symbol("char-downcase"), make_primitive(prim_char_downcase));
+    set_global(vm, make_symbol("char-alphabetic?"), make_primitive(prim_char_alphabetic_p));
+    set_global(vm, make_symbol("char-numeric?"), make_primitive(prim_char_numeric_p));
+    set_global(vm, make_symbol("char-whitespace?"), make_primitive(prim_char_whitespace_p));
+    set_global(vm, make_symbol("char-upper-case?"), make_primitive(prim_char_upper_case_p));
+    set_global(vm, make_symbol("char-lower-case?"), make_primitive(prim_char_lower_case_p));
+    set_global(vm, make_symbol("display"), make_primitive(prim_display));
+    set_global(vm, make_symbol("write"), make_primitive(prim_write));
+    set_global(vm, make_symbol("newline"), make_primitive(prim_newline));
 }

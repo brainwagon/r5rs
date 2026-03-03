@@ -21,6 +21,7 @@ typedef enum {
     OP_DEF,     // [1, idx:2]
     OP_CALLCC,  // [1]
     OP_DUP,     // [1]
+    OP_APPLY,   // [1]
 } OpCode;
 
 typedef enum {
@@ -77,6 +78,7 @@ typedef struct Value {
             struct Value** constants;
             int num_constants;
             int num_args;
+            bool has_rest;
         } proto;
         struct {
             struct Value* proto; // VAL_PROTOTYPE
@@ -109,7 +111,7 @@ Value* make_macro(Value* literals, Value* rules);
 Value* make_nil(void);
 Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
-Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args);
+Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args, bool has_rest);
 Value* make_closure(Value* proto, Value* env);
 Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, struct Value** args));
 Value* make_continuation(struct Value** stack, int sp, struct Value* env, struct Value* proto, unsigned char* pc);
