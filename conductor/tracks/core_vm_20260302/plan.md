@@ -1,6 +1,6 @@
 # Implementation Plan: core_vm_20260302
 
-## Phase 1: Foundation and Data Structures
+## Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]
 - [x] **Task 1: Project Scaffolding** [c77ce58]
   - Setup directory structure (src, include, tests).
   - Create the initial Makefile for compilation and testing.
@@ -13,7 +13,7 @@
   - Implement a basic allocator for Scheme objects.
   - Implement a simple mark-and-sweep garbage collector.
   - Write unit tests to verify allocation and basic collection.
-- [~] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures' (Protocol in workflow.md)**
+- [~] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]' (Protocol in workflow.md)**
 
 ## Phase 2: Virtual Machine and Compiler Core
 - [ ] **Task 1: Instruction Set Design**
