@@ -16,8 +16,6 @@ void gc_init(void) {
 Value* gc_alloc(ValueType type) {
     Value* v = malloc(sizeof(Value));
     if (!v) {
-        // In a real VM, we would trigger collection here 
-        // and try again, but let's keep it simple.
         perror("malloc failed");
         exit(1);
     }
@@ -47,9 +45,13 @@ static void mark_object(Value* v) {
     } else if (v->type == VAL_CLOSURE) {
         mark_object(v->as.closure.proto);
         mark_object(v->as.closure.env);
+    } else if (v->type == VAL_CONTINUATION) {
+        for (int i = 0; i < v->as.cont.sp; i++) {
+            mark_object(v->as.cont.stack[i]);
+        }
+        mark_object(v->as.cont.env);
+        mark_object(v->as.cont.proto);
     }
-    // Note: Symbols use a char* string that is not a Value, 
-    // so we don't need to mark it, but we'll need to free it.
 }
 
 static void sweep(void) {
@@ -64,6 +66,8 @@ static void sweep(void) {
             } else if (unreached->type == VAL_PROTOTYPE) {
                 free(unreached->as.proto.code);
                 free(unreached->as.proto.constants);
+            } else if (unreached->type == VAL_CONTINUATION) {
+                free(unreached->as.cont.stack);
             }
             free(unreached);
         } else {

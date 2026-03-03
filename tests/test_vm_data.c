@@ -38,8 +38,8 @@ void test_make_closure(void) {
     TEST_ASSERT_TRUE(is_closure(closure));
 }
 
-Value* dummy_primitive(int nargs, Value** args) {
-    (void)nargs; (void)args;
+Value* dummy_primitive(struct VM* vm, int nargs, Value** args) {
+    (void)vm; (void)nargs; (void)args;
     return make_nil();
 }
 
@@ -51,10 +51,29 @@ void test_make_primitive(void) {
     TEST_ASSERT_TRUE(is_primitive(prim));
 }
 
+void test_make_continuation(void) {
+    Value* v1 = make_fixnum(1);
+    Value* stack[1] = {v1};
+    Value* env = make_nil();
+    Value* proto = make_proto(NULL, 0, NULL, 0, 0);
+    unsigned char* pc = (unsigned char*)0x1234;
+    
+    Value* cont = make_continuation(stack, 1, env, proto, pc);
+    TEST_ASSERT_NOT_NULL(cont);
+    TEST_ASSERT_EQUAL(VAL_CONTINUATION, cont->type);
+    TEST_ASSERT_EQUAL(1, cont->as.cont.sp);
+    TEST_ASSERT_EQUAL(v1->as.fixnum, cont->as.cont.stack[0]->as.fixnum);
+    TEST_ASSERT_EQUAL(env, cont->as.cont.env);
+    TEST_ASSERT_EQUAL(proto, cont->as.cont.proto);
+    TEST_ASSERT_EQUAL(pc, cont->as.cont.pc);
+    TEST_ASSERT_TRUE(is_continuation(cont));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_make_proto);
     RUN_TEST(test_make_closure);
     RUN_TEST(test_make_primitive);
+    RUN_TEST(test_make_continuation);
     return UNITY_END();
 }

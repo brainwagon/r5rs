@@ -140,6 +140,25 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
                 int idx = pb_add_constant(pb, sym);
                 pb_emit(pb, OP_DEF);
                 pb_emit2(pb, idx);
+                if (tail) {
+                    pb_emit(pb, OP_RET);
+                }
+                return;
+            }
+            if (strcmp(name, "set!") == 0) {
+                Value* sym = expr->as.pair.cdr->as.pair.car;
+                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                compile_expr(pb, body, env, false);
+                int d, i;
+                if (lookup_lexical(env, sym, &d, &i)) {
+                    pb_emit(pb, OP_LSET);
+                    pb_emit(pb, (unsigned char)d);
+                    pb_emit2(pb, i);
+                } else {
+                    int idx = pb_add_constant(pb, sym);
+                    pb_emit(pb, OP_GSET);
+                    pb_emit2(pb, idx);
+                }
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
@@ -156,11 +175,17 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
                 
                 Value* new_env = make_pair(params, env);
                 Value* proto = compile(body, new_env, num_args);
-                // Note: compile() internally calls compile_expr(..., true) for lambda body
                 
                 int idx = pb_add_constant(pb, proto);
                 pb_emit(pb, OP_CLOSURE);
                 pb_emit2(pb, idx);
+                if (tail) pb_emit(pb, OP_RET);
+                return;
+            }
+            if (strcmp(name, "call/cc") == 0 || strcmp(name, "call-with-current-continuation") == 0) {
+                Value* receiver = expr->as.pair.cdr->as.pair.car;
+                compile_expr(pb, receiver, env, false);
+                pb_emit(pb, OP_CALLCC);
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
@@ -184,9 +209,6 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
 Value* compile(Value* expr, Value* env, int num_args) {
     ProtoBuilder pb;
     pb_init(&pb);
-    // lambda body or top-level?
-    // If num_args >= 0, it's a lambda body, so it should end in RET
-    // If num_args < 0, it's top-level, so it should end in HALT
     bool is_lambda = (num_args >= 0);
     compile_expr(&pb, expr, env, is_lambda);
     if (!is_lambda) pb_emit(&pb, OP_HALT);

@@ -5,17 +5,13 @@
 
 Value* make_fixnum(long n) {
     Value* v = gc_alloc(VAL_FIXNUM);
-    if (v) {
-        v->as.fixnum = n;
-    }
+    if (v) v->as.fixnum = n;
     return v;
 }
 
 Value* make_boolean(bool b) {
     Value* v = gc_alloc(VAL_BOOLEAN);
-    if (v) {
-        v->as.boolean = b;
-    }
+    if (v) v->as.boolean = b;
     return v;
 }
 
@@ -26,23 +22,17 @@ Value* make_nil(void) {
 static Value* symbol_registry = NULL;
 
 Value* make_symbol(const char* name) {
-    if (!symbol_registry) {
-        gc_add_root(&symbol_registry);
-    }
+    if (!symbol_registry) gc_add_root(&symbol_registry);
     Value* current = symbol_registry;
     while (current) {
         Value* sym = current->as.pair.car;
-        if (strcmp(sym->as.symbol, name) == 0) {
-            return sym;
-        }
+        if (strcmp(sym->as.symbol, name) == 0) return sym;
         current = current->as.pair.cdr;
     }
-
     Value* v = gc_alloc(VAL_SYMBOL);
     if (v) {
         v->as.symbol = strdup(name);
-        // Link it into the registry
-        Value* link = gc_alloc(VAL_PAIR); // Internal link
+        Value* link = gc_alloc(VAL_PAIR);
         if (link) {
             link->as.pair.car = v;
             link->as.pair.cdr = symbol_registry;
@@ -82,11 +72,28 @@ Value* make_closure(Value* proto, Value* env) {
     return v;
 }
 
-Value* make_primitive(Value* (*primitive)(int nargs, Value** args)) {
+Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, Value** args)) {
     Value* v = gc_alloc(VAL_PRIMITIVE);
+    if (v) v->as.primitive = primitive;
+    return v;
+}
+
+Value* make_continuation(Value** stack, int sp, Value* env, Value* proto, unsigned char* pc) {
+    Value* v = gc_alloc(VAL_CONTINUATION);
     if (v) {
-        v->as.primitive = primitive;
+        v->as.cont.stack = malloc(sizeof(Value*) * sp);
+        memcpy(v->as.cont.stack, stack, sizeof(Value*) * sp);
+        v->as.cont.sp = sp;
+        v->as.cont.env = env;
+        v->as.cont.proto = proto;
+        v->as.cont.pc = pc;
     }
+    return v;
+}
+
+Value* make_raw(void* p) {
+    Value* v = gc_alloc(VAL_RAW);
+    if (v) v->as.raw = p;
     return v;
 }
 
@@ -98,3 +105,4 @@ bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }
 bool is_closure(Value* v) { return v && v->type == VAL_CLOSURE; }
 bool is_proto(Value* v) { return v && v->type == VAL_PROTOTYPE; }
 bool is_primitive(Value* v) { return v && v->type == VAL_PRIMITIVE; }
+bool is_continuation(Value* v) { return v && v->type == VAL_CONTINUATION; }

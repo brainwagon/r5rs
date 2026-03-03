@@ -18,6 +18,7 @@ typedef enum {
     OP_CLOSURE, // [1, idx:2] - idx is proto index in constant pool
     OP_POP,     // [1]
     OP_DEF,     // [1, idx:2]
+    OP_CALLCC,  // [1]
 } OpCode;
 
 typedef enum {
@@ -29,7 +30,11 @@ typedef enum {
     VAL_CLOSURE,
     VAL_PROTOTYPE,
     VAL_PRIMITIVE,
+    VAL_CONTINUATION,
+    VAL_RAW,
 } ValueType;
+
+struct VM; // Forward declaration
 
 typedef struct Value {
     ValueType type;
@@ -54,7 +59,15 @@ typedef struct Value {
             struct Value* proto; // VAL_PROTOTYPE
             struct Value* env;   // VAL_PAIR or VAL_NIL (linked list of frames)
         } closure;
-        struct Value* (*primitive)(int nargs, struct Value** args);
+        struct Value* (*primitive)(struct VM* vm, int nargs, struct Value** args);
+        struct {
+            struct Value** stack;
+            int sp;
+            struct Value* env;
+            struct Value* proto;
+            unsigned char* pc;
+        } cont;
+        void* raw;
     } as;
 } Value;
 
@@ -65,7 +78,9 @@ Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
 Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args);
 Value* make_closure(Value* proto, Value* env);
-Value* make_primitive(Value* (*primitive)(int nargs, Value** args));
+Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, struct Value** args));
+Value* make_continuation(struct Value** stack, int sp, struct Value* env, struct Value* proto, unsigned char* pc);
+Value* make_raw(void* p);
 
 void gc_init(void);
 Value* gc_alloc(ValueType type);
@@ -80,5 +95,6 @@ bool is_pair(Value* v);
 bool is_closure(Value* v);
 bool is_proto(Value* v);
 bool is_primitive(Value* v);
+bool is_continuation(Value* v);
 
 #endif /* SCHEME_H */
