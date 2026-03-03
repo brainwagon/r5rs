@@ -135,6 +135,58 @@ void test_pervasive_yinyang(void) {
     TEST_ASSERT_TRUE(is_nil(p));
 }
 
+// 5.1-5.3 #f/() distinctness
+void test_pervasive_f_null_distinct(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
+
+    TEST_ASSERT_FALSE(run_scheme(&vm, "(eq? #f '())")->as.boolean);
+    TEST_ASSERT_FALSE(run_scheme(&vm, "(eqv? #f '())")->as.boolean);
+    TEST_ASSERT_FALSE(run_scheme(&vm, "(equal? #f '())")->as.boolean);
+}
+
+// 6.1 string->symbol case sensitivity
+void test_pervasive_symbol_case(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
+
+    TEST_ASSERT_FALSE(run_scheme(&vm, "(eq? (string->symbol \"f\") (string->symbol \"F\"))")->as.boolean);
+}
+
+// 8.1 Named let shadowing
+void test_pervasive_named_let_shadow(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
+
+    Value* result = run_scheme(&vm, "(let - ((n (- 1))) n)");
+    TEST_ASSERT_EQUAL(-1, result->as.fixnum);
+}
+
+// 8.2 append sharing tail
+void test_pervasive_append_sharing(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
+
+    Value* result = run_scheme(&vm, "(let ((ls (list 1 2 3 4))) (append ls ls '(5)))");
+    // Should be (1 2 3 4 1 2 3 4 5)
+    int expected[] = {1, 2, 3, 4, 1, 2, 3, 4, 5};
+    Value* p = result;
+    for (int i = 0; i < 9; i++) {
+        TEST_ASSERT_TRUE(is_pair(p));
+        TEST_ASSERT_EQUAL(expected[i], p->as.pair.car->as.fixnum);
+        p = p->as.pair.cdr;
+    }
+    TEST_ASSERT_TRUE(is_nil(p));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_pervasive_placeholder);
@@ -143,5 +195,9 @@ int main(void) {
     RUN_TEST(test_pervasive_identifier_shadowing);
     RUN_TEST(test_pervasive_callcc_app);
     RUN_TEST(test_pervasive_yinyang);
+    RUN_TEST(test_pervasive_f_null_distinct);
+    RUN_TEST(test_pervasive_symbol_case);
+    RUN_TEST(test_pervasive_named_let_shadow);
+    RUN_TEST(test_pervasive_append_sharing);
     return UNITY_END();
 }

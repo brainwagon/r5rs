@@ -423,6 +423,76 @@ static Value* prim_newline(VM* vm, int nargs, Value** args) {
     return make_nil();
 }
 
+static Value* prim_eq_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) { fprintf(stderr, "eq? expects 2 args\n"); exit(1); }
+    return make_boolean(args[0] == args[1]);
+}
+
+static Value* prim_append(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs == 0) return make_nil();
+    Value* res = args[nargs - 1];
+    for (int i = nargs - 2; i >= 0; i--) {
+        Value* list = args[i];
+        Value* head = make_nil();
+        Value* tail = NULL;
+        Value* p = list;
+        while (is_pair(p)) {
+            Value* new_pair = make_pair(p->as.pair.car, make_nil());
+            if (!tail) { head = new_pair; tail = new_pair; }
+            else { tail->as.pair.cdr = new_pair; tail = new_pair; }
+            p = p->as.pair.cdr;
+        }
+        if (tail) {
+            tail->as.pair.cdr = res;
+            res = head;
+        }
+    }
+    return res;
+}
+
+static Value* prim_equal_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) { fprintf(stderr, "equal? expects 2 args\n"); exit(1); }
+    Value* a = args[0];
+    Value* b = args[1];
+    if (a == b) return make_boolean(true);
+    if (a->type != b->type) return make_boolean(false);
+    switch (a->type) {
+        case VAL_PAIR: {
+            Value* aa[2] = {a->as.pair.car, b->as.pair.car};
+            if (!prim_equal_p(vm, 2, aa)->as.boolean) return make_boolean(false);
+            Value* ab[2] = {a->as.pair.cdr, b->as.pair.cdr};
+            return prim_equal_p(vm, 2, ab);
+        }
+        case VAL_STRING:
+            return make_boolean(strcmp(a->as.string.str, b->as.string.str) == 0);
+        case VAL_VECTOR: {
+            if (a->as.vector.len != b->as.vector.len) return make_boolean(false);
+            for (int i = 0; i < a->as.vector.len; i++) {
+                Value* av[2] = {a->as.vector.elements[i], b->as.vector.elements[i]};
+                if (!prim_equal_p(vm, 2, av)->as.boolean) return make_boolean(false);
+            }
+            return make_boolean(true);
+        }
+        default:
+            return prim_eqv_p(vm, nargs, args);
+    }
+}
+
+static Value* prim_string_to_symbol(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_string(args[0])) { fprintf(stderr, "string->symbol expects 1 string\n"); exit(1); }
+    return make_symbol(args[0]->as.string.str);
+}
+
+static Value* prim_symbol_to_string(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 1 || !is_symbol(args[0])) { fprintf(stderr, "symbol->string expects 1 symbol\n"); exit(1); }
+    return make_string(args[0]->as.symbol);
+}
+
 void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
@@ -440,8 +510,15 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("number?"), make_primitive(prim_number_p));
     set_global(vm, make_symbol("boolean?"), make_primitive(prim_boolean_p));
     set_global(vm, make_symbol("null?"), make_primitive(prim_null_p));
-    
+    set_global(vm, make_symbol("eq?"), make_primitive(prim_eq_p));
+    set_global(vm, make_symbol("eqv?"), make_primitive(prim_eqv_p));
+    set_global(vm, make_symbol("equal?"), make_primitive(prim_equal_p));
+    set_global(vm, make_symbol("append"), make_primitive(prim_append));
+    set_global(vm, make_symbol("string->symbol"), make_primitive(prim_string_to_symbol));
+    set_global(vm, make_symbol("symbol->string"), make_primitive(prim_symbol_to_string));
+
     set_global(vm, make_symbol("make-string"), make_primitive(prim_make_string));
+
     set_global(vm, make_symbol("string-length"), make_primitive(prim_string_length));
     set_global(vm, make_symbol("string-ref"), make_primitive(prim_string_ref));
     set_global(vm, make_symbol("string-set!"), make_primitive(prim_string_set));

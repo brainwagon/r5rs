@@ -432,11 +432,13 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                         vars = vars->as.pair.cdr;
                         vals = vals->as.pair.cdr;
                     }
+                    // (let tag ((v i) ...) body ...) =>
+                    // ((letrec ((tag (lambda (v ...) body ...))) tag) i ...)
                     Value* lambda = make_pair(make_symbol("lambda"), make_pair(rvars, body));
                     Value* letrec_bindings = make_pair(make_pair(name_val, make_pair(lambda, make_nil())), make_nil());
-                    Value* call = make_pair(name_val, rvals);
-                    Value* letrec = make_pair(make_symbol("letrec"), make_pair(letrec_bindings, make_pair(call, make_nil())));
-                    compile_expr(pb, letrec, env, syntax_env, tail);
+                    Value* letrec = make_pair(make_symbol("letrec"), make_pair(letrec_bindings, make_pair(name_val, make_nil())));
+                    Value* call = make_pair(letrec, rvals);
+                    compile_expr(pb, call, env, syntax_env, tail);
                     return;
                 }
                 Value* vars = make_nil();
