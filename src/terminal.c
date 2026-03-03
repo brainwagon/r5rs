@@ -2,6 +2,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <errno.h>
 
 void terminal_init(TerminalState* state) {
     memset(state, 0, sizeof(TerminalState));
@@ -24,9 +25,9 @@ int terminal_enable_raw_mode(TerminalState* state) {
     // Local flags: disable echoing, canonical mode, extended functions, signals
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     
-    // Set timeout for read
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1; // 100ms
+    // Set to blocking read: wait for at least one character
+    raw.c_cc[VMIN] = 1;
+    raw.c_cc[VTIME] = 0;
     
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) return -1;
     
@@ -48,7 +49,10 @@ int terminal_read_char(TerminalState* state) {
     char c;
     int nread;
     while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
-        if (nread == -1 && (state->raw_mode_enabled == 0)) return -1;
+        if (nread == -1) {
+            if (errno == EAGAIN || errno == EINTR) continue;
+            return -1;
+        }
         if (nread == 0) return 0; // EOF
     }
     return c;
