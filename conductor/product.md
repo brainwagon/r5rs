@@ -8,7 +8,7 @@ To build a small, embeddable Scheme interpreter conforming to the R5RS specifica
 ## Core Objectives
 - **Embeddability**: Designed to be easily integrated as a scripting engine into other C-based applications.
 - **R5RS Compliance**: Implementing all required features of the Revised 5 Report on Scheme, including syntax-rules macros and complex numbers.
-- **Robustness**: A built-in garbage collector (mark-and-sweep or similar) to manage Scheme objects safely.
+- **Robustness**: A built-in garbage collector and rigorous verification against pervasive R5RS pitfall test suites to ensure edge-case reliability.
 - **Portability**: Targeting standard POSIX-compliant C (C99/C11).
 
 ## Key Features
@@ -16,6 +16,7 @@ To build a small, embeddable Scheme interpreter conforming to the R5RS specifica
 - **REPL**: Interactive environment for development and testing.
 - **File Loading**: Support for loading and executing Scheme programs from external files.
 - **Language Core**: Full support for R5RS essential procedures and syntax.
+- **Pervasive Testing**: Integrated suite of R5RS compliance tests (e.g., pitfalls) to verify complex lexical and control flow behavior.
 
 ## Target Audience
 - Developers needing an embeddable Lisp/Scheme scripting engine.
