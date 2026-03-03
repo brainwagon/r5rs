@@ -28,7 +28,7 @@
   - Implement Tail Call Optimization (TCO).
 - [x] **Task 4: Conductor - User Manual Verification 'Phase 2: Virtual Machine and Compiler Core' (Protocol in workflow.md)** [b6d47bd]
 
-## Phase 3: Advanced Features and Interface
+## Phase 3: Advanced Features and Interface [checkpoint: 11214eb]
 - [x] **Task 1: First-Class Continuations** [15aca19]
   - Implement continuation capture and re-invocation (`call/cc`).
   - Update the stack and VM state to handle non-local control flow.
@@ -40,4 +40,4 @@
 - [x] **Task 4: Final Verification and Cleanup** [75d3232]
   - Perform comprehensive testing against the R5RS core requirements.
   - Run Valgrind to ensure no memory leaks and perform final refactoring.
-- [~] **Task 5: Conductor - User Manual Verification 'Phase 3: Advanced Features and Interface' (Protocol in workflow.md)**
+- [x] **Task 5: Conductor - User Manual Verification 'Phase 3: Advanced Features and Interface' (Protocol in workflow.md)** [11214eb]
