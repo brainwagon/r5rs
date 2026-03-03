@@ -14,4 +14,6 @@ This file tracks all major tracks for the project. Each track has its own detail
   *Link: [./tracks/numeric_tower_20260303/](./tracks/numeric_tower_20260303/)*
 - [x] **Track: Implement Hygienic Macro System**
   *Link: [./tracks/hygienic_macros_20260303/](./tracks/hygienic_macros_20260303/)*
+- [x] **Track: Implement Standard Library via Prelude**
+  *Link: [./tracks/std_library_20260303/](./tracks/std_library_20260303/)*
 
