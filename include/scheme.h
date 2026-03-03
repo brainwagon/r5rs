@@ -13,6 +13,8 @@ typedef enum {
 
 typedef struct Value {
     ValueType type;
+    bool marked;
+    struct Value* next; // All objects are on a single linked list
     union {
         long fixnum;
         bool boolean;
@@ -29,6 +31,11 @@ Value* make_boolean(bool b);
 Value* make_nil(void);
 Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
+
+void gc_init(void);
+Value* gc_alloc(ValueType type);
+void gc_collect(void);
+void gc_add_root(Value** root);
 
 bool is_fixnum(Value* v);
 bool is_boolean(Value* v);

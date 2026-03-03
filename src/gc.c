@@ -1,0 +1,71 @@
+#include <scheme.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+#define MAX_ROOTS 1024
+
+static Value* all_objects = NULL;
+static Value** roots[MAX_ROOTS];
+static int roots_count = 0;
+
+void gc_init(void) {
+    all_objects = NULL;
+    roots_count = 0;
+}
+
+Value* gc_alloc(ValueType type) {
+    Value* v = malloc(sizeof(Value));
+    if (!v) {
+        // In a real VM, we would trigger collection here 
+        // and try again, but let's keep it simple.
+        perror("malloc failed");
+        exit(1);
+    }
+    v->type = type;
+    v->marked = false;
+    v->next = all_objects;
+    all_objects = v;
+    return v;
+}
+
+void gc_add_root(Value** root) {
+    if (roots_count < MAX_ROOTS) {
+        roots[roots_count++] = root;
+    }
+}
+
+static void mark_object(Value* v) {
+    if (!v || v->marked) return;
+    v->marked = true;
+    if (v->type == VAL_PAIR) {
+        mark_object(v->as.pair.car);
+        mark_object(v->as.pair.cdr);
+    }
+    // Note: Symbols use a char* string that is not a Value, 
+    // so we don't need to mark it, but we'll need to free it.
+}
+
+static void sweep(void) {
+    Value** p = &all_objects;
+    while (*p) {
+        if (!(*p)->marked) {
+            Value* unreached = *p;
+            *p = unreached->next;
+            
+            if (unreached->type == VAL_SYMBOL) {
+                free((void*)unreached->as.symbol);
+            }
+            free(unreached);
+        } else {
+            (*p)->marked = false;
+            p = &((*p)->next);
+        }
+    }
+}
+
+void gc_collect(void) {
+    for (int i = 0; i < roots_count; i++) {
+        mark_object(*roots[i]);
+    }
+    sweep();
+}

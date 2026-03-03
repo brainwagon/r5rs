@@ -3,16 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-static Value* alloc_value(ValueType type) {
-    Value* v = malloc(sizeof(Value));
-    if (v) {
-        v->type = type;
-    }
-    return v;
-}
-
 Value* make_fixnum(long n) {
-    Value* v = alloc_value(VAL_FIXNUM);
+    Value* v = gc_alloc(VAL_FIXNUM);
     if (v) {
         v->as.fixnum = n;
     }
@@ -20,7 +12,7 @@ Value* make_fixnum(long n) {
 }
 
 Value* make_boolean(bool b) {
-    Value* v = alloc_value(VAL_BOOLEAN);
+    Value* v = gc_alloc(VAL_BOOLEAN);
     if (v) {
         v->as.boolean = b;
     }
@@ -28,12 +20,15 @@ Value* make_boolean(bool b) {
 }
 
 Value* make_nil(void) {
-    return alloc_value(VAL_NIL);
+    return gc_alloc(VAL_NIL);
 }
 
 static Value* symbol_registry = NULL;
 
 Value* make_symbol(const char* name) {
+    if (!symbol_registry) {
+        gc_add_root(&symbol_registry);
+    }
     Value* current = symbol_registry;
     while (current) {
         Value* sym = current->as.pair.car;
@@ -43,11 +38,11 @@ Value* make_symbol(const char* name) {
         current = current->as.pair.cdr;
     }
 
-    Value* v = alloc_value(VAL_SYMBOL);
+    Value* v = gc_alloc(VAL_SYMBOL);
     if (v) {
         v->as.symbol = strdup(name);
         // Link it into the registry
-        Value* link = alloc_value(VAL_PAIR); // Internal link
+        Value* link = gc_alloc(VAL_PAIR); // Internal link
         if (link) {
             link->as.pair.car = v;
             link->as.pair.cdr = symbol_registry;
@@ -58,9 +53,8 @@ Value* make_symbol(const char* name) {
 }
 
 Value* make_pair(Value* car, Value* cdr) {
-    Value* v = alloc_value(VAL_PAIR);
+    Value* v = gc_alloc(VAL_PAIR);
     if (v) {
-        v->as.pair.car = car;
         v->as.pair.car = car;
         v->as.pair.cdr = cdr;
     }
