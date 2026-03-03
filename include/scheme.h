@@ -32,6 +32,9 @@ typedef enum {
     VAL_PRIMITIVE,
     VAL_CONTINUATION,
     VAL_RAW,
+    VAL_STRING,
+    VAL_VECTOR,
+    VAL_CHAR,
 } ValueType;
 
 struct VM; // Forward declaration
@@ -43,7 +46,16 @@ typedef struct Value {
     union {
         long fixnum;
         bool boolean;
+        char character;
         const char* symbol;
+        struct {
+            char* str;
+            int len;
+        } string;
+        struct {
+            struct Value** elements;
+            int len;
+        } vector;
         struct {
             struct Value* car;
             struct Value* cdr;
@@ -73,6 +85,9 @@ typedef struct Value {
 
 Value* make_fixnum(long n);
 Value* make_boolean(bool b);
+Value* make_char(char c);
+Value* make_string(const char* s);
+Value* make_vector(int len, Value* fill);
 Value* make_nil(void);
 Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
@@ -90,6 +105,9 @@ int gc_get_object_count(void);
 
 bool is_fixnum(Value* v);
 bool is_boolean(Value* v);
+bool is_char(Value* v);
+bool is_string(Value* v);
+bool is_vector(Value* v);
 bool is_nil(Value* v);
 bool is_symbol(Value* v);
 bool is_pair(Value* v);

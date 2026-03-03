@@ -16,6 +16,33 @@ Value* make_boolean(bool b) {
     return v;
 }
 
+Value* make_char(char c) {
+    Value* v = gc_alloc(VAL_CHAR);
+    if (v) v->as.character = c;
+    return v;
+}
+
+Value* make_string(const char* s) {
+    Value* v = gc_alloc(VAL_STRING);
+    if (v) {
+        v->as.string.len = strlen(s);
+        v->as.string.str = strdup(s);
+    }
+    return v;
+}
+
+Value* make_vector(int len, Value* fill) {
+    Value* v = gc_alloc(VAL_VECTOR);
+    if (v) {
+        v->as.vector.len = len;
+        v->as.vector.elements = malloc(sizeof(Value*) * len);
+        for (int i = 0; i < len; i++) {
+            v->as.vector.elements[i] = fill;
+        }
+    }
+    return v;
+}
+
 Value* make_nil(void) {
     return gc_alloc(VAL_NIL);
 }
@@ -103,6 +130,22 @@ void print_value(Value* v) {
     switch (v->type) {
         case VAL_FIXNUM: printf("%ld", v->as.fixnum); break;
         case VAL_BOOLEAN: printf(v->as.boolean ? "#t" : "#f"); break;
+        case VAL_CHAR:
+            if (v->as.character == '\n') printf("#\\newline");
+            else if (v->as.character == ' ') printf("#\\space");
+            else printf("#\\%c", v->as.character);
+            break;
+        case VAL_STRING:
+            printf("\"%s\"", v->as.string.str);
+            break;
+        case VAL_VECTOR:
+            printf("#(");
+            for (int i = 0; i < v->as.vector.len; i++) {
+                print_value(v->as.vector.elements[i]);
+                if (i < v->as.vector.len - 1) printf(" ");
+            }
+            printf(")");
+            break;
         case VAL_NIL: printf("()"); break;
         case VAL_SYMBOL: printf("%s", v->as.symbol); break;
         case VAL_PAIR:
@@ -128,6 +171,9 @@ void print_value(Value* v) {
 
 bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
 bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
+bool is_char(Value* v) { return v && v->type == VAL_CHAR; }
+bool is_string(Value* v) { return v && v->type == VAL_STRING; }
+bool is_vector(Value* v) { return v && v->type == VAL_VECTOR; }
 bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
 bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
 bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }

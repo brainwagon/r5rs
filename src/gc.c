@@ -61,6 +61,10 @@ static void mark_object(Value* v) {
         }
         mark_object(v->as.cont.env);
         mark_object(v->as.cont.proto);
+    } else if (v->type == VAL_VECTOR) {
+        for (int i = 0; i < v->as.vector.len; i++) {
+            mark_object(v->as.vector.elements[i]);
+        }
     }
 }
 
@@ -78,6 +82,10 @@ static void sweep(void) {
                 free(unreached->as.proto.constants);
             } else if (unreached->type == VAL_CONTINUATION) {
                 free(unreached->as.cont.stack);
+            } else if (unreached->type == VAL_STRING) {
+                free(unreached->as.string.str);
+            } else if (unreached->type == VAL_VECTOR) {
+                free(unreached->as.vector.elements);
             }
             free(unreached);
         } else {
