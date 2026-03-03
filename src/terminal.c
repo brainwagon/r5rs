@@ -75,6 +75,13 @@ int terminal_readline_basic(TerminalState* state, char* buf, int max_len) {
             terminal_write_str("\r\n");
             break;
         }
+        if (c == 127 || c == 8) { // Backspace or Ctrl-H
+            if (len > 0) {
+                len--;
+                terminal_write_str("\b \b");
+            }
+            continue;
+        }
         
         // Basic echo
         terminal_write_char((char)c);

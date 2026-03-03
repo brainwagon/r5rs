@@ -145,6 +145,29 @@ void test_terminal_readline_ctrl_d(void) {
     close(in_fds[1]);
 }
 
+void test_terminal_readline_backspace(void) {
+    int in_fds[2];
+    pipe(in_fds);
+    int old_stdin = dup(STDIN_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    
+    // Write "abc", then backspace (\x7f), then "d\n"
+    write(in_fds[1], "abc\x7f" "d\n", 6);
+    
+    TerminalState state;
+    terminal_init(&state);
+    char buf[128];
+    int res = terminal_readline_basic(&state, buf, sizeof(buf));
+    
+    TEST_ASSERT_EQUAL(3, res);
+    TEST_ASSERT_EQUAL_STRING("abd", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    close(old_stdin);
+    close(in_fds[0]);
+    close(in_fds[1]);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -153,5 +176,6 @@ int main(void) {
     RUN_TEST(test_terminal_read_char_eof);
     RUN_TEST(test_terminal_readline_basic);
     RUN_TEST(test_terminal_readline_ctrl_d);
+    RUN_TEST(test_terminal_readline_backspace);
     return UNITY_END();
 }
