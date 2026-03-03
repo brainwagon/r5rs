@@ -7,14 +7,15 @@ A fast, small, and feature-complete R5RS Scheme implementation in C, featuring a
 ## Features
 
 ### Core VM & Language
-- **Bytecode VM**: Efficient stack-based execution with 17 specialized opcodes.
+- **Bytecode VM**: Efficient stack-based execution with specialized opcodes.
 - **Tail Call Optimization (TCO)**: Mandatory tail calls are optimized to allow infinite recursion.
-- **First-Class Continuations**: Full support for `call-with-current-continuation` (`call/cc`).
-- **Lexical Scoping**: Proper lexical environments with support for closures and nested scopes.
-- **Hygienic Macros**: Complete implementation of `syntax-rules`, `define-syntax`, `let-syntax`, and `letrec-syntax`.
+- **First-Class Continuations**: Full support for `call-with-current-continuation` (`call/cc`) as both a special form and a first-class procedure.
+- **Lexical Scoping**: Proper lexical environments with support for closures, nested scopes, and rest-argument shadowing.
+- **Hygienic Macros**: Robust implementation of `syntax-rules` with a renaming mechanism that prevents unintentional capturing of global identifiers.
 
 ### Data Types & Numeric Tower
-- **Fixnums & Bignums**: Automatic promotion from 64-bit integers to arbitrary-precision bignums.
+- **Numeric Tower**: Consistent behavior across Fixnums, Bignums, and Reals with full support for mixed-type arithmetic.
+- **Bignums**: Automatic promotion from 64-bit integers to arbitrary-precision bignums.
 - **Reals**: Floating-point numeric support.
 - **Standard Types**: Pairs, Lists, Symbols, Strings, Vectors, Booleans, and Characters.
 

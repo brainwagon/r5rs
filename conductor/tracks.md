@@ -19,5 +19,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Fix Pervasive Test Failures and R5RS Compliance**
+- [~] **Track: Fix Pervasive Test Failures and R5RS Compliance**
 *Link: [./tracks/pervasive_fixes_20260303/](./tracks/pervasive_fixes_20260303/)*

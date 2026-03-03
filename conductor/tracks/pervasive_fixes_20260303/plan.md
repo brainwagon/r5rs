@@ -1,7 +1,7 @@
 # Implementation Plan: Fix Pervasive Test Failures and R5RS Compliance
 
 ## Phase 1: VM Continuation Robustness (Priority 1)
-- [ ] Task: Investigate `test_pervasive_cont_mutation` failure in `src/vm.c`. Trace stack capture and restoration to identify the source of the garbage value.
+- [~] Task: Investigate `test_pervasive_cont_mutation` failure in `src/vm.c`. Trace stack capture and restoration to identify the source of the garbage value.
 - [ ] Task: Attempt to fix the continuation bug if it's an implementation error (e.g., incorrect pointer arithmetic or missing GC root during capture).
 - [ ] Task: If the failure is due to the flat stack architecture, document the technical constraints and stop implementation for this phase.
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: VM Continuation Robustness' (Protocol in workflow.md)

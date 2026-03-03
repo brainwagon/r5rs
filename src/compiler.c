@@ -5,13 +5,15 @@
 #include <string.h>
 #include <stdio.h>
 
+extern struct VM* global_vm_ptr;
+
 typedef struct {
     unsigned char* code;
-    int cap;
     int len;
+    int cap;
     Value** constants;
-    int c_cap;
     int c_len;
+    int c_cap;
 } ProtoBuilder;
 
 static void pb_init(ProtoBuilder* pb) {
@@ -31,9 +33,9 @@ static void pb_emit(ProtoBuilder* pb, unsigned char b) {
     pb->code[pb->len++] = b;
 }
 
-static void pb_emit2(ProtoBuilder* pb, int v) {
-    pb_emit(pb, (v >> 8) & 0xFF);
-    pb_emit(pb, v & 0xFF);
+static void pb_emit2(ProtoBuilder* pb, int val) {
+    pb_emit(pb, (val >> 8) & 0xFF);
+    pb_emit(pb, val & 0xFF);
 }
 
 static int pb_add_constant(ProtoBuilder* pb, Value* v) {
@@ -48,7 +50,7 @@ static int pb_add_constant(ProtoBuilder* pb, Value* v) {
     return pb->c_len - 1;
 }
 
-static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
+static bool lookup_lexical(Value* env, Value* sym, int* depth, int* idx) {
     int d = 0;
     while (is_pair(env)) {
         Value* frame = env->as.pair.car;
@@ -56,15 +58,15 @@ static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
         while (is_pair(frame)) {
             if (frame->as.pair.car == sym) {
                 *depth = d;
-                *index = i;
+                *idx = i;
                 return true;
             }
             frame = frame->as.pair.cdr;
             i++;
         }
-        if (is_symbol(frame) && frame == sym) {
+        if (frame == sym) { // Handle rest argument or (lambda args ...)
             *depth = d;
-            *index = i;
+            *idx = i;
             return true;
         }
         env = env->as.pair.cdr;
@@ -75,20 +77,11 @@ static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
 
 static Value* lookup_syntax(Value* syntax_env, Value* sym) {
     while (is_pair(syntax_env)) {
-        Value* pair = syntax_env->as.pair.car;
-        if (pair->as.pair.car == sym) return pair->as.pair.cdr;
+        Value* entry = syntax_env->as.pair.car;
+        if (entry->as.pair.car == sym) return entry->as.pair.cdr;
         syntax_env = syntax_env->as.pair.cdr;
     }
     return NULL;
-}
-
-static int count_args(Value* params) {
-    int count = 0;
-    while (is_pair(params)) {
-        count++;
-        params = params->as.pair.cdr;
-    }
-    return count;
 }
 
 static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* syntax_env, bool tail);
@@ -116,36 +109,23 @@ static void compile_and(ProtoBuilder* pb, Value* exprs, Value* env, Value* synta
         if (tail) pb_emit(pb, OP_RET);
         return;
     }
-    Value* first = exprs->as.pair.car;
+    Value* e = exprs->as.pair.car;
     Value* rest = exprs->as.pair.cdr;
     if (is_nil(rest)) {
-        compile_expr(pb, first, env, syntax_env, tail);
+        compile_expr(pb, e, env, syntax_env, tail);
         return;
     }
-    compile_expr(pb, first, env, syntax_env, false);
+    compile_expr(pb, e, env, syntax_env, false);
     pb_emit(pb, OP_JF);
     int jf_pos = pb->len;
     pb_emit2(pb, 0);
     compile_and(pb, rest, env, syntax_env, tail);
     if (!tail) {
-        pb_emit(pb, OP_JUMP);
-        int jump_pos = pb->len;
-        pb_emit2(pb, 0);
-        int false_start = pb->len;
-        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
-        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
-        pb_emit(pb, OP_CONST);
-        pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
         int end_pos = pb->len;
-        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
-        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+        pb->code[jf_pos] = (end_pos - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (end_pos - jf_pos - 2) & 0xFF;
     } else {
-        int false_start = pb->len;
-        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
-        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
-        pb_emit(pb, OP_CONST);
-        pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
-        pb_emit(pb, OP_RET);
+        // Already handled by tail call or OP_RET
     }
 }
 
@@ -156,38 +136,34 @@ static void compile_or(ProtoBuilder* pb, Value* exprs, Value* env, Value* syntax
         if (tail) pb_emit(pb, OP_RET);
         return;
     }
-    Value* first = exprs->as.pair.car;
+    Value* e = exprs->as.pair.car;
     Value* rest = exprs->as.pair.cdr;
     if (is_nil(rest)) {
-        compile_expr(pb, first, env, syntax_env, tail);
+        compile_expr(pb, e, env, syntax_env, tail);
         return;
     }
-    compile_expr(pb, first, env, syntax_env, false);
+    compile_expr(pb, e, env, syntax_env, false);
     pb_emit(pb, OP_DUP);
     pb_emit(pb, OP_JF);
     int jf_pos = pb->len;
     pb_emit2(pb, 0);
-    if (tail) {
-        pb_emit(pb, OP_RET);
-    } else {
-        pb_emit(pb, OP_JUMP);
-        int jump_pos = pb->len;
-        pb_emit2(pb, 0);
-        int false_start = pb->len;
-        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
-        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
-        pb_emit(pb, OP_POP);
-        compile_or(pb, rest, env, syntax_env, false);
-        int end_pos = pb->len;
-        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
-        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
-        return;
-    }
+    // If true, jump to end (with value on stack)
+    pb_emit(pb, OP_JUMP);
+    int jump_pos = pb->len;
+    pb_emit2(pb, 0);
+    
+    // If false, pop and evaluate rest
     int false_start = pb->len;
     pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
     pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
     pb_emit(pb, OP_POP);
-    compile_or(pb, rest, env, syntax_env, true);
+    compile_or(pb, rest, env, syntax_env, tail);
+    
+    if (!tail) {
+        int end_pos = pb->len;
+        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+    }
 }
 
 static void compile_cond(ProtoBuilder* pb, Value* clauses, Value* env, Value* syntax_env, bool tail) {
@@ -306,11 +282,46 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
     }
     
     if (is_symbol(expr)) {
+        if (getenv("VM_DEBUG_COMPILER")) printf("Compiling symbol: %s\n", expr->as.symbol);
+        
+        const char* s = expr->as.symbol;
+        bool is_kw = (strcmp(s, "if") == 0 || strcmp(s, "define") == 0 || strcmp(s, "set!") == 0 || strcmp(s, "lambda") == 0 ||
+                      strcmp(s, "quote") == 0 || strcmp(s, "begin") == 0 || strcmp(s, "let") == 0 || strcmp(s, "cond") == 0);
+
         int d, i;
         if (lookup_lexical(env, expr, &d, &i)) {
             pb_emit(pb, OP_LREF);
             pb_emit(pb, (unsigned char)d);
             pb_emit2(pb, i);
+        } else if (strncmp(s, "%gen-", 5) == 0) {
+            // Renamed symbol, not found lexically. Extract base name and lookup globally.
+            const char* start = s + 5;
+            const char* end = strrchr(start, '-');
+            if (end && end > start) {
+                int len = end - start;
+                char* base = malloc(len + 1);
+                strncpy(base, start, len);
+                base[len] = '\0';
+                Value* base_sym = make_symbol(base);
+                free(base);
+                int idx = pb_add_constant(pb, base_sym);
+                pb_emit(pb, OP_GREF);
+                pb_emit2(pb, idx);
+            } else {
+                int idx = pb_add_constant(pb, expr);
+                pb_emit(pb, OP_GREF);
+                pb_emit2(pb, idx);
+            }
+        } else if (is_kw) {
+            // Keyword used as identifier, but not shadowed.
+            // If it's not in the global env, it will fail at runtime if we use GREF.
+            // But for pervasive tests like ((lambda lambda lambda) 'x), 
+            // the second 'lambda' is passed as an argument to the first 'lambda'.
+            // Actually, if it's a keyword and NOT shadowed, it SHOULD be an error to use it as a value
+            // UNLESS it's bound in the global environment.
+            int idx = pb_add_constant(pb, expr);
+            pb_emit(pb, OP_GREF);
+            pb_emit2(pb, idx);
         } else {
             int idx = pb_add_constant(pb, expr);
             pb_emit(pb, OP_GREF);
@@ -331,6 +342,16 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             }
 
             const char* name = car->as.symbol;
+            int d, i;
+            if (!lookup_lexical(env, car, &d, &i)) {
+                if (strcmp(name, "call-with-current-continuation") == 0 || strcmp(name, "call/cc") == 0) {
+                    Value* proc_expr = expr->as.pair.cdr->as.pair.car;
+                    compile_expr(pb, proc_expr, env, syntax_env, false);
+                    pb_emit(pb, OP_CALLCC);
+                    if (tail) pb_emit(pb, OP_RET);
+                    return;
+                }
+            }
             if (strcmp(name, "quote") == 0) {
                 Value* datum = expr->as.pair.cdr->as.pair.car;
                 int idx = pb_add_constant(pb, datum);
@@ -342,11 +363,14 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             if (strcmp(name, "if") == 0) {
                 Value* test = expr->as.pair.cdr->as.pair.car;
                 Value* then_part = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
-                Value* else_part = expr->as.pair.cdr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                Value* else_part = make_nil();
+                if (is_pair(expr->as.pair.cdr->as.pair.cdr->as.pair.cdr)) {
+                    else_part = expr->as.pair.cdr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                }
                 compile_expr(pb, test, env, syntax_env, false);
                 pb_emit(pb, OP_JF);
                 int jf_pos = pb->len;
-                pb_emit2(pb, 0); 
+                pb_emit2(pb, 0);
                 compile_expr(pb, then_part, env, syntax_env, tail);
                 int jump_pos = -1;
                 if (!tail) {
@@ -467,14 +491,13 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 Value* bindings = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
                 if (is_nil(bindings)) {
-                    Value* begin = make_pair(make_symbol("begin"), body);
-                    compile_expr(pb, begin, env, syntax_env, tail);
+                    compile_body(pb, body, env, syntax_env, tail);
                 } else {
                     Value* first = bindings->as.pair.car;
                     Value* rest = bindings->as.pair.cdr;
-                    Value* next_let = make_pair(make_symbol("let*"), make_pair(rest, body));
-                    Value* outer_let = make_pair(make_symbol("let"), make_pair(make_pair(first, make_nil()), make_pair(next_let, make_nil())));
-                    compile_expr(pb, outer_let, env, syntax_env, tail);
+                    Value* inner = make_pair(make_symbol("let*"), make_pair(rest, body));
+                    Value* let = make_pair(make_symbol("let"), make_pair(make_pair(first, make_nil()), make_pair(inner, make_nil())));
+                    compile_expr(pb, let, env, syntax_env, tail);
                 }
                 return;
             }
@@ -520,7 +543,12 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 memcpy(code, sub_pb.code, sub_pb.len);
                 Value** constants = malloc(sizeof(Value*) * sub_pb.c_len);
                 memcpy(constants, sub_pb.constants, sizeof(Value*) * sub_pb.c_len);
-                Value* sub_proto = make_proto(code, sub_pb.len, constants, sub_pb.c_len, count_args(vars), false);
+                
+                int n_args = 0;
+                Value* v_ptr = vars;
+                while (is_pair(v_ptr)) { n_args++; v_ptr = v_ptr->as.pair.cdr; }
+                
+                Value* sub_proto = make_proto(code, sub_pb.len, constants, sub_pb.c_len, n_args, false);
                 free(sub_pb.code);
                 free(sub_pb.constants);
 
@@ -559,9 +587,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     Value* literals = transformer_expr->as.pair.cdr->as.pair.car;
                     Value* rules = transformer_expr->as.pair.cdr->as.pair.cdr;
                     Value* macro = make_macro(literals, rules);
-                    if (global_vm_ptr) {
-                        global_vm_ptr->syntax_env = make_pair(make_pair(sym, macro), global_vm_ptr->syntax_env);
-                    }
+                    set_global(global_vm_ptr, sym, macro); // TODO: Properly handle syntax env
                     pb_emit(pb, OP_CONST);
                     pb_emit2(pb, pb_add_constant(pb, make_nil()));
                     if (tail) pb_emit(pb, OP_RET);
@@ -588,8 +614,8 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             }
             if (strcmp(name, "set!") == 0) {
                 Value* sym = expr->as.pair.cdr->as.pair.car;
-                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
-                compile_expr(pb, body, env, syntax_env, false);
+                Value* val_expr = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                compile_expr(pb, val_expr, env, syntax_env, false);
                 int d, i;
                 if (lookup_lexical(env, sym, &d, &i)) {
                     pb_emit(pb, OP_LSET);
@@ -603,15 +629,6 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
-            if (strcmp(name, "apply") == 0) {
-                Value* proc_expr = expr->as.pair.cdr->as.pair.car;
-                Value* arg_list_expr = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
-                compile_expr(pb, proc_expr, env, syntax_env, false);
-                compile_expr(pb, arg_list_expr, env, syntax_env, false);
-                pb_emit(pb, OP_APPLY);
-                if (tail) pb_emit(pb, OP_RET);
-                return;
-            }
             if (strcmp(name, "begin") == 0) {
                 compile_body(pb, expr->as.pair.cdr, env, syntax_env, tail);
                 return;
@@ -619,6 +636,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             if (strcmp(name, "lambda") == 0) {
                 Value* params = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
+                
                 int num_args = 0;
                 bool has_rest = false;
                 Value* p = params;
@@ -626,27 +644,21 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     num_args++;
                     p = p->as.pair.cdr;
                 }
-                if (is_symbol(p)) {
-                    has_rest = true;
-                }
-                Value* new_env = make_pair(params, env);
-                Value* proto = compile(body, new_env, syntax_env, num_args, has_rest);
-                int idx = pb_add_constant(pb, proto);
+                if (is_symbol(p)) has_rest = true;
+
+                Value* inner_env = make_pair(params, env);
+                Value* sub_proto = compile(body, inner_env, syntax_env, num_args, has_rest);
+                int idx = pb_add_constant(pb, sub_proto);
                 pb_emit(pb, OP_CLOSURE);
                 pb_emit2(pb, idx);
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
-            if (strcmp(name, "call/cc") == 0 || strcmp(name, "call-with-current-continuation") == 0) {
-                Value* receiver = expr->as.pair.cdr->as.pair.car;
-                compile_expr(pb, receiver, env, syntax_env, false);
-                pb_emit(pb, OP_CALLCC);
-                if (tail) pb_emit(pb, OP_RET);
-                return;
-            }
         }
-        Value* args = expr->as.pair.cdr;
+
+        // Procedure call
         int nargs = 0;
+        Value* args = expr->as.pair.cdr;
         while (is_pair(args)) {
             compile_expr(pb, args->as.pair.car, env, syntax_env, false);
             args = args->as.pair.cdr;

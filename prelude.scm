@@ -3,6 +3,9 @@
 ;;; Standard procedures
 (define not (lambda (x) (if x #f #t)))
 
+(define call-with-current-continuation (lambda (proc) (call-with-current-continuation proc)))
+(define call/cc call-with-current-continuation)
+
 (define list? 
   (lambda (x)
     (let loop ((x x) (slow x))

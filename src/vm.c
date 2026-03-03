@@ -35,7 +35,9 @@ Value* lookup_global(VM* vm, Value* sym) {
     Value* current = vm->globals;
     while (is_pair(current)) {
         Value* entry = current->as.pair.car;
-        if (entry->as.pair.car == sym) return entry->as.pair.cdr;
+        if (entry->as.pair.car == sym) {
+            return entry->as.pair.cdr;
+        }
         current = current->as.pair.cdr;
     }
     return NULL;
@@ -94,7 +96,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 for (int d = 0; d < depth; d++) e = e->as.pair.cdr;
                 Value* frame = e->as.pair.car;
                 for (int i = 0; i < idx; i++) frame = frame->as.pair.cdr;
-                if (is_pair(frame)) frame->as.pair.car = val;
+                frame->as.pair.car = val;
                 push(vm, val);
                 break;
             }
@@ -113,8 +115,8 @@ Value* vm_run(VM* vm, Value* top_proto) {
             case OP_GSET: {
                 int idx = (vm->pc[0] << 8) | vm->pc[1];
                 vm->pc += 2;
-                Value* sym = vm->top_proto->as.proto.constants[idx];
                 Value* val = pop(vm);
+                Value* sym = vm->top_proto->as.proto.constants[idx];
                 set_global(vm, sym, val);
                 push(vm, val);
                 break;
@@ -122,10 +124,10 @@ Value* vm_run(VM* vm, Value* top_proto) {
             case OP_DEF: {
                 int idx = (vm->pc[0] << 8) | vm->pc[1];
                 vm->pc += 2;
-                Value* sym = vm->top_proto->as.proto.constants[idx];
                 Value* val = pop(vm);
+                Value* sym = vm->top_proto->as.proto.constants[idx];
                 set_global(vm, sym, val);
-                push(vm, val);
+                push(vm, make_nil());
                 break;
             }
             case OP_JF: {
@@ -146,7 +148,6 @@ Value* vm_run(VM* vm, Value* top_proto) {
             case OP_CALLCC: {
                 Value* proc = pop(vm);
                 Value* cont = make_continuation(vm->stack, vm->sp, vm->env, vm->top_proto, vm->pc);
-                push(vm, cont);
                 if (is_primitive(proc)) {
                     Value* args[1] = {cont};
                     Value* result = proc->as.primitive(vm, 1, args);
@@ -238,6 +239,10 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 } else if (is_continuation(proc)) {
                     if (nargs != 1) { fprintf(stderr, "Continuation expects 1 argument\n"); exit(1); }
                     Value* result = pop(vm);
+                    if (proc->as.cont.sp > vm->stack_cap) {
+                        vm->stack_cap = proc->as.cont.sp;
+                        vm->stack = realloc(vm->stack, sizeof(Value*) * vm->stack_cap);
+                    }
                     vm->sp = proc->as.cont.sp;
                     memcpy(vm->stack, proc->as.cont.stack, sizeof(Value*) * vm->sp);
                     vm->env = proc->as.cont.env;

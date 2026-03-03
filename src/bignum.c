@@ -131,3 +131,13 @@ char* bignum_to_string(Value* v) {
     }
     return str;
 }
+
+double bignum_to_double(Value* v) {
+    double res = 0;
+    double factor = 1;
+    for (int i = 0; i < v->as.bignum.len; i++) {
+        res += (double)v->as.bignum.digits[i] * factor;
+        factor *= BASE;
+    }
+    return res * v->as.bignum.sign;
+}

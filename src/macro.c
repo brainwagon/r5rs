@@ -118,15 +118,7 @@ static Value* expand_template(Value* template, Value* matches, int ellipsis_idx,
 
         // CRITICAL: We only rename identifiers that are NOT literals and NOT core keywords.
         // But we should only rename them if they are introduced by the macro (i.e. in the template but not in matches).
-        // For now, let's just NOT rename common global functions like + if they are not in literals.
         if (is_core_keyword(template->as.symbol) || is_literal(literals, template)) {
-            return template;
-        }
-
-        // If it's a common arithmetic op, don't rename it for now to avoid the %gen-+-0 bug
-        const char* s = template->as.symbol;
-        if (strcmp(s, "+") == 0 || strcmp(s, "-") == 0 || strcmp(s, "*") == 0 || strcmp(s, "/") == 0 ||
-            strcmp(s, "=") == 0 || strcmp(s, "<") == 0 || strcmp(s, ">") == 0) {
             return template;
         }
 
