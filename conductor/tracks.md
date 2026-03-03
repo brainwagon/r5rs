@@ -12,4 +12,6 @@ This file tracks all major tracks for the project. Each track has its own detail
   *Link: [./tracks/derived_exprs_20260303/](./tracks/derived_exprs_20260303/)*
 - [x] **Track: Implement R5RS Numeric Tower**
   *Link: [./tracks/numeric_tower_20260303/](./tracks/numeric_tower_20260303/)*
+- [~] **Track: Implement Hygienic Macro System**
+  *Link: [./tracks/hygienic_macros_20260303/](./tracks/hygienic_macros_20260303/)*
 
