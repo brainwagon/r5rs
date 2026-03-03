@@ -5,7 +5,7 @@
   - Setup directory structure (src, include, tests).
   - Create the initial Makefile for compilation and testing.
   - Integrate the Unity testing framework.
-- [ ] **Task 2: Core Scheme Values**
+- [x] **Task 2: Core Scheme Values** [d1c7133]
   - Design the `Value` type (tagged union or similar).
   - Implement primitive constructors for Fixnums, Booleans, and Nil.
   - Implement the `Symbol` registry and `Pair` (Cons) structure.
