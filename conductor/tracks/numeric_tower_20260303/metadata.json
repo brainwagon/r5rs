@@ -1,0 +1,8 @@
+{
+  "track_id": "numeric_tower_20260303",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-03-03T12:00:00Z",
+  "updated_at": "2026-03-03T12:00:00Z",
+  "description": "Implement R5RS numeric tower with custom bignums"
+}
