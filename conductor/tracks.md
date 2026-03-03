@@ -16,9 +16,3 @@ This file tracks all major tracks for the project. Each track has its own detail
   *Link: [./tracks/hygienic_macros_20260303/](./tracks/hygienic_macros_20260303/)*
 - [x] **Track: Implement Standard Library via Prelude**
   *Link: [./tracks/std_library_20260303/](./tracks/std_library_20260303/)*
-
-
----
-
-- [x] **Track: Integrate Pervasive Language Tests**
-*Link: [./tracks/pervasive_tests_20260303/](./tracks/pervasive_tests_20260303/)*
