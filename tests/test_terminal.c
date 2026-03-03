@@ -87,7 +87,7 @@ void test_terminal_read_char_eof(void) {
     close(fds[0]);
 }
 
-void test_terminal_readline_basic(void) {
+void test_terminal_readline(void) {
     int in_fds[2], out_fds[2];
     pipe(in_fds);
     pipe(out_fds);
@@ -101,7 +101,7 @@ void test_terminal_readline_basic(void) {
     TerminalState state;
     terminal_init(&state);
     char buf[128];
-    int res = terminal_readline_basic(&state, buf, sizeof(buf));
+    int res = terminal_readline(&state, buf, sizeof(buf));
     
     TEST_ASSERT_EQUAL(5, res);
     TEST_ASSERT_EQUAL_STRING("hello", buf);
@@ -134,7 +134,7 @@ void test_terminal_readline_ctrl_d(void) {
     TerminalState state;
     terminal_init(&state);
     char buf[128];
-    int res = terminal_readline_basic(&state, buf, sizeof(buf));
+    int res = terminal_readline(&state, buf, sizeof(buf));
     
     TEST_ASSERT_EQUAL(3, res);
     TEST_ASSERT_EQUAL_STRING("abc", buf);
@@ -157,10 +157,58 @@ void test_terminal_readline_backspace(void) {
     TerminalState state;
     terminal_init(&state);
     char buf[128];
-    int res = terminal_readline_basic(&state, buf, sizeof(buf));
+    int res = terminal_readline(&state, buf, sizeof(buf));
     
     TEST_ASSERT_EQUAL(3, res);
     TEST_ASSERT_EQUAL_STRING("abd", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    close(old_stdin);
+    close(in_fds[0]);
+    close(in_fds[1]);
+}
+
+void test_terminal_readline_cursor_nav(void) {
+    int in_fds[2];
+    pipe(in_fds);
+    int old_stdin = dup(STDIN_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    
+    // Write "abc", then Ctrl-B (\x02) twice, then "X", then "\n"
+    // Result should be "aXbc"
+    write(in_fds[1], "abc\x02\x02X\n", 7);
+    
+    TerminalState state;
+    terminal_init(&state);
+    char buf[128];
+    int res = terminal_readline(&state, buf, sizeof(buf));
+    
+    TEST_ASSERT_EQUAL(4, res);
+    TEST_ASSERT_EQUAL_STRING("aXbc", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    close(old_stdin);
+    close(in_fds[0]);
+    close(in_fds[1]);
+}
+
+void test_terminal_readline_cursor_nav_right(void) {
+    int in_fds[2];
+    pipe(in_fds);
+    int old_stdin = dup(STDOUT_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    
+    // Write "abc", then Ctrl-B twice, then Ctrl-F (\x06), then "X\n"
+    // Result should be "abXc"
+    write(in_fds[1], "abc\x02\x02\x06X\n", 8);
+    
+    TerminalState state;
+    terminal_init(&state);
+    char buf[128];
+    int res = terminal_readline(&state, buf, sizeof(buf));
+    
+    TEST_ASSERT_EQUAL(4, res);
+    TEST_ASSERT_EQUAL_STRING("abXc", buf);
     
     dup2(old_stdin, STDIN_FILENO);
     close(old_stdin);
@@ -174,8 +222,10 @@ int main(void) {
     RUN_TEST(test_terminal_raw_mode_lifecycle);
     RUN_TEST(test_terminal_read_char);
     RUN_TEST(test_terminal_read_char_eof);
-    RUN_TEST(test_terminal_readline_basic);
+    RUN_TEST(test_terminal_readline);
     RUN_TEST(test_terminal_readline_ctrl_d);
     RUN_TEST(test_terminal_readline_backspace);
+    RUN_TEST(test_terminal_readline_cursor_nav);
+    RUN_TEST(test_terminal_readline_cursor_nav_right);
     return UNITY_END();
 }

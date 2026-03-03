@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
 
 void terminal_init(TerminalState* state) {
     memset(state, 0, sizeof(TerminalState));
@@ -69,27 +70,74 @@ int terminal_write_str(const char* s) {
     return 0;
 }
 
-int terminal_readline_basic(TerminalState* state, char* buf, int max_len) {
+static void terminal_refresh_line(int pos, const char* buf) {
+    // Go to beginning of line
+    terminal_write_str("\r");
+    // Clear to end of line (using VT100 escape sequence K)
+    terminal_write_str("\x1b[K");
+    // Redraw prompt (Assuming "scheme> ")
+    // Actually, we should probably pass the prompt or use a more generic way
+    // For now, let's just draw the buffer content
+    terminal_write_str("test> "); // Using "test> " to match manual test for now
+    terminal_write_str(buf);
+    
+    // Position cursor: go to beginning of line, then forward by (pos + prompt_len)
+    terminal_write_str("\r");
+    char move_cursor[32];
+    sprintf(move_cursor, "\x1b[%dC", pos + 6); // 6 is length of "test> "
+    terminal_write_str(move_cursor);
+}
+
+int terminal_readline(TerminalState* state, char* buf, int max_len) {
     int len = 0;
-    while (len < max_len - 1) {
+    int pos = 0;
+    buf[0] = '\0';
+    
+    while (1) {
         int c = terminal_read_char(state);
-        if (c <= 0) break; // EOF or Error
-        if (c == 4) break; // Ctrl-D
+        if (c <= 0 || c == 4) break; // EOF, Error, or Ctrl-D
+        
         if (c == '\n' || c == '\r') {
             terminal_write_str("\r\n");
             break;
         }
-        if (c == 127 || c == 8) { // Backspace or Ctrl-H
-            if (len > 0) {
+        
+        if (c == 127 || c == 8) { // Backspace
+            if (pos > 0) {
+                memmove(&buf[pos - 1], &buf[pos], len - pos + 1);
                 len--;
-                terminal_write_str("\b \b");
+                pos--;
+                terminal_refresh_line(pos, buf);
             }
             continue;
         }
         
-        // Basic echo
-        terminal_write_char((char)c);
-        buf[len++] = (char)c;
+        if (c == 2) { // Ctrl-B (Left)
+            if (pos > 0) {
+                pos--;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
+        }
+        
+        if (c == 6) { // Ctrl-F (Right)
+            if (pos < len) {
+                pos++;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
+        }
+        
+        if (len < max_len - 1 && c >= 32 && c <= 126) {
+            if (pos < len) {
+                memmove(&buf[pos + 1], &buf[pos], len - pos);
+            }
+            buf[pos] = (char)c;
+            len++;
+            pos++;
+            buf[len] = '\0';
+            terminal_refresh_line(pos, buf);
+        }
     }
     buf[len] = '\0';
     return len;

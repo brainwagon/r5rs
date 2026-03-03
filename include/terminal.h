@@ -15,5 +15,6 @@ int terminal_read_char(TerminalState* state);
 int terminal_write_char(char c);
 int terminal_write_str(const char* s);
 int terminal_readline_basic(TerminalState* state, char* buf, int max_len);
+int terminal_readline(TerminalState* state, char* buf, int max_len);
 
 #endif /* TERMINAL_H */
