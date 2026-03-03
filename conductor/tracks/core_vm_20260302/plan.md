@@ -1,7 +1,7 @@
 # Implementation Plan: core_vm_20260302
 
 ## Phase 1: Foundation and Data Structures
-- [ ] **Task 1: Project Scaffolding**
+- [x] **Task 1: Project Scaffolding** [c77ce58]
   - Setup directory structure (src, include, tests).
   - Create the initial Makefile for compilation and testing.
   - Integrate the Unity testing framework.
