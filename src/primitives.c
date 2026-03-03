@@ -90,6 +90,76 @@ static Value* prim_null_p(VM* vm, int nargs, Value** args) {
     return make_boolean(nargs == 1 && is_nil(args[0]));
 }
 
+static Value* prim_make_string(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs < 1 || nargs > 2 || !is_fixnum(args[0])) { fprintf(stderr, "make-string expects a length and optional char\n"); exit(1); }
+    int len = args[0]->as.fixnum;
+    char c = (nargs == 2 && is_char(args[1])) ? args[1]->as.character : ' ';
+    char* buf = malloc(len + 1);
+    memset(buf, c, len);
+    buf[len] = '\0';
+    Value* str = make_string(buf);
+    free(buf);
+    return str;
+}
+
+static Value* prim_string_ref(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2 || !is_string(args[0]) || !is_fixnum(args[1])) { fprintf(stderr, "string-ref expects a string and an index\n"); exit(1); }
+    int idx = args[1]->as.fixnum;
+    if (idx < 0 || idx >= args[0]->as.string.len) { fprintf(stderr, "string-ref index out of bounds\n"); exit(1); }
+    return make_char(args[0]->as.string.str[idx]);
+}
+
+static Value* prim_string_set(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 3 || !is_string(args[0]) || !is_fixnum(args[1]) || !is_char(args[2])) { fprintf(stderr, "string-set! expects a string, index, and char\n"); exit(1); }
+    int idx = args[1]->as.fixnum;
+    if (idx < 0 || idx >= args[0]->as.string.len) { fprintf(stderr, "string-set! index out of bounds\n"); exit(1); }
+    args[0]->as.string.str[idx] = args[2]->as.character;
+    return make_nil(); // R5RS says return value is unspecified
+}
+
+static Value* prim_make_vector(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs < 1 || nargs > 2 || !is_fixnum(args[0])) { fprintf(stderr, "make-vector expects a length and optional fill\n"); exit(1); }
+    int len = args[0]->as.fixnum;
+    Value* fill = (nargs == 2) ? args[1] : make_nil(); // Unspecified in R5RS, using nil
+    return make_vector(len, fill);
+}
+
+static Value* prim_vector_ref(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2 || !is_vector(args[0]) || !is_fixnum(args[1])) { fprintf(stderr, "vector-ref expects a vector and an index\n"); exit(1); }
+    int idx = args[1]->as.fixnum;
+    if (idx < 0 || idx >= args[0]->as.vector.len) { fprintf(stderr, "vector-ref index out of bounds\n"); exit(1); }
+    return args[0]->as.vector.elements[idx];
+}
+
+static Value* prim_vector_set(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 3 || !is_vector(args[0]) || !is_fixnum(args[1])) { fprintf(stderr, "vector-set! expects a vector, index, and value\n"); exit(1); }
+    int idx = args[1]->as.fixnum;
+    if (idx < 0 || idx >= args[0]->as.vector.len) { fprintf(stderr, "vector-set! index out of bounds\n"); exit(1); }
+    args[0]->as.vector.elements[idx] = args[2];
+    return make_nil();
+}
+
+static Value* prim_char_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_char(args[0]));
+}
+
+static Value* prim_string_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_string(args[0]));
+}
+
+static Value* prim_vector_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    return make_boolean(nargs == 1 && is_vector(args[0]));
+}
+
 void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
@@ -105,4 +175,14 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("number?"), make_primitive(prim_number_p));
     set_global(vm, make_symbol("boolean?"), make_primitive(prim_boolean_p));
     set_global(vm, make_symbol("null?"), make_primitive(prim_null_p));
+    
+    set_global(vm, make_symbol("make-string"), make_primitive(prim_make_string));
+    set_global(vm, make_symbol("string-ref"), make_primitive(prim_string_ref));
+    set_global(vm, make_symbol("string-set!"), make_primitive(prim_string_set));
+    set_global(vm, make_symbol("make-vector"), make_primitive(prim_make_vector));
+    set_global(vm, make_symbol("vector-ref"), make_primitive(prim_vector_ref));
+    set_global(vm, make_symbol("vector-set!"), make_primitive(prim_vector_set));
+    set_global(vm, make_symbol("char?"), make_primitive(prim_char_p));
+    set_global(vm, make_symbol("string?"), make_primitive(prim_string_p));
+    set_global(vm, make_symbol("vector?"), make_primitive(prim_vector_p));
 }

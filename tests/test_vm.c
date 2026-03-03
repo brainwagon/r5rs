@@ -116,6 +116,40 @@ void test_vm_list_primitives(void) {
     TEST_ASSERT_EQUAL(1, r5->as.pair.car->as.fixnum);
 }
 
+void test_vm_string_vector_primitives(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    // String test
+    Value* r1 = vm_run(&vm, compile(read_str("(make-string 5 #\\a)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_string(r1));
+    TEST_ASSERT_EQUAL_STRING("aaaaa", r1->as.string.str);
+    
+    vm_run(&vm, compile(read_str("(define s \"hello\")"), make_nil(), -1));
+    Value* r2 = vm_run(&vm, compile(read_str("(string-ref s 1)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_char(r2));
+    TEST_ASSERT_EQUAL('e', r2->as.character);
+    
+    vm_run(&vm, compile(read_str("(string-set! s 1 #\\a)"), make_nil(), -1));
+    Value* r3 = vm_run(&vm, compile(read_str("s"), make_nil(), -1));
+    TEST_ASSERT_EQUAL_STRING("hallo", r3->as.string.str);
+
+    // Vector test
+    Value* r4 = vm_run(&vm, compile(read_str("(make-vector 3 42)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_vector(r4));
+    TEST_ASSERT_EQUAL(3, r4->as.vector.len);
+    TEST_ASSERT_EQUAL(42, r4->as.vector.elements[0]->as.fixnum);
+    
+    vm_run(&vm, compile(read_str("(define v #(1 2 3))"), make_nil(), -1));
+    Value* r5 = vm_run(&vm, compile(read_str("(vector-ref v 2)"), make_nil(), -1));
+    TEST_ASSERT_EQUAL(3, r5->as.fixnum);
+    
+    vm_run(&vm, compile(read_str("(vector-set! v 2 99)"), make_nil(), -1));
+    Value* r6 = vm_run(&vm, compile(read_str("(vector-ref v 2)"), make_nil(), -1));
+    TEST_ASSERT_EQUAL(99, r6->as.fixnum);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_vm_const);
@@ -127,5 +161,6 @@ int main(void) {
     RUN_TEST(test_vm_callcc);
     RUN_TEST(test_vm_lset);
     RUN_TEST(test_vm_list_primitives);
+    RUN_TEST(test_vm_string_vector_primitives);
     return UNITY_END();
 }
