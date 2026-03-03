@@ -58,19 +58,83 @@ Value* read_sexpr_str(const char** input) {
         return make_pair(make_symbol("quote"), make_pair(quoted, make_nil()));
     }
 
+    if (c == '"') {
+        (*input)++;
+        int cap = 32;
+        int len = 0;
+        char* buf = malloc(cap);
+        while (**input && **input != '"') {
+            if (**input == '\\') {
+                (*input)++;
+                if (**input == 'n') { buf[len++] = '\n'; (*input)++; }
+                else if (**input == '\\') { buf[len++] = '\\'; (*input)++; }
+                else if (**input == '"') { buf[len++] = '"'; (*input)++; }
+                else { buf[len++] = **input; (*input)++; }
+            } else {
+                buf[len++] = **input;
+                (*input)++;
+            }
+            if (len == cap) {
+                cap *= 2;
+                buf = realloc(buf, cap);
+            }
+        }
+        if (**input == '"') (*input)++;
+        buf[len] = '\0';
+        Value* str = make_string(buf);
+        free(buf);
+        return str;
+    }
+
     if (c == '#') {
         (*input)++;
         char next = **input;
-        (*input)++;
-        if (next == 't') return make_boolean(true);
-        if (next == 'f') return make_boolean(false);
+        if (next == 't') {
+            (*input)++;
+            return make_boolean(true);
+        } else if (next == 'f') {
+            (*input)++;
+            return make_boolean(false);
+        } else if (next == '\\') { // Character
+            (*input)++;
+            const char* start = *input;
+            int len = 0;
+            while (**input && !isspace(**input) && **input != '(' && **input != ')' && **input != ';') {
+                (*input)++;
+                len++;
+            }
+            if (len == 1) {
+                return make_char(start[0]);
+            } else if (len == 5 && strncmp(start, "space", 5) == 0) {
+                return make_char(' ');
+            } else if (len == 7 && strncmp(start, "newline", 7) == 0) {
+                return make_char('\n');
+            }
+            return NULL; // Invalid char
+        } else if (next == '(') { // Vector
+            (*input)++;
+            Value* lst = read_list(input);
+            int count = 0;
+            Value* p = lst;
+            while (is_pair(p)) {
+                count++;
+                p = p->as.pair.cdr;
+            }
+            Value* vec = make_vector(count, make_nil());
+            p = lst;
+            for (int i = 0; i < count; i++) {
+                vec->as.vector.elements[i] = p->as.pair.car;
+                p = p->as.pair.cdr;
+            }
+            return vec;
+        }
         return NULL; // Error
     }
 
     // Number or Symbol
     const char* start = *input;
     int len = 0;
-    while (**input && !isspace(**input) && **input != '(' && **input != ')' && **input != ';') {
+    while (**input && !isspace(**input) && **input != '(' && **input != ')' && **input != ';' && **input != '"') {
         (*input)++;
         len++;
     }
