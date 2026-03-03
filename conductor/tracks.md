@@ -21,3 +21,8 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [~] **Track: Fix Pervasive Test Failures and R5RS Compliance**
 *Link: [./tracks/pervasive_fixes_20260303/](./tracks/pervasive_fixes_20260303/)*
+
+---
+
+- [ ] **Track: add improved command line editing when using the REPL loop, including paren matching.**
+*Link: [./tracks/repl_editing_20260303/](./tracks/repl_editing_20260303/)*
