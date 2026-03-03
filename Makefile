@@ -11,30 +11,32 @@ UNITY_DIR = tests/unity
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
 
-TEST_SRCS = $(wildcard $(TEST_DIR)/*.c)
+TEST_SRCS = $(wildcard $(TEST_DIR)/test_*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(TEST_DIR)/%, $(TEST_SRCS))
 
 UNITY_SRC = $(UNITY_DIR)/unity.c
 UNITY_OBJ = $(OBJ_DIR)/unity.o
 
-.PHONY: all clean test
+all: scheme $(TEST_BINS)
 
-all: $(OBJS)
+scheme: $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR):
-	mkdir -p $(OBJ_DIR)
-
-$(UNITY_OBJ): $(UNITY_SRC) | $(OBJ_DIR)
+$(UNITY_OBJ): $(UNITY_SRC)
+	@mkdir -p $(OBJ_DIR)
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) -c $< -o $@
 
 test: $(TEST_BINS)
 	@for bin in $(TEST_BINS); do ./$$bin; done
 
-$(TEST_DIR)/%: $(TEST_DIR)/%.c $(OBJS) $(UNITY_OBJ)
-	$(CC) $(CFLAGS) -I$(UNITY_DIR) $^ -o $@
+$(TEST_DIR)/%: $(TEST_DIR)/%.c $(filter-out $(OBJ_DIR)/main.o, $(OBJS)) $(UNITY_OBJ)
+	$(CC) $(CFLAGS) -I$(UNITY_DIR) $^ -o $@ $(LDFLAGS)
 
 clean:
-	rm -rf $(OBJ_DIR) $(TEST_BINS)
+	rm -rf $(OBJ_DIR) $(TEST_BINS) scheme *.gcov
+
+.PHONY: all test clean

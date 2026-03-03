@@ -97,4 +97,6 @@ bool is_proto(Value* v);
 bool is_primitive(Value* v);
 bool is_continuation(Value* v);
 
+void print_value(Value* v);
+
 #endif /* SCHEME_H */

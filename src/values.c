@@ -2,6 +2,7 @@
 #include <scheme.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
 Value* make_fixnum(long n) {
     Value* v = gc_alloc(VAL_FIXNUM);
@@ -95,6 +96,34 @@ Value* make_raw(void* p) {
     Value* v = gc_alloc(VAL_RAW);
     if (v) v->as.raw = p;
     return v;
+}
+
+void print_value(Value* v) {
+    if (!v) { printf("NULL"); return; }
+    switch (v->type) {
+        case VAL_FIXNUM: printf("%ld", v->as.fixnum); break;
+        case VAL_BOOLEAN: printf(v->as.boolean ? "#t" : "#f"); break;
+        case VAL_NIL: printf("()"); break;
+        case VAL_SYMBOL: printf("%s", v->as.symbol); break;
+        case VAL_PAIR:
+            printf("(");
+            while (is_pair(v)) {
+                print_value(v->as.pair.car);
+                v = v->as.pair.cdr;
+                if (is_pair(v)) printf(" ");
+            }
+            if (!is_nil(v)) {
+                printf(" . ");
+                print_value(v);
+            }
+            printf(")");
+            break;
+        case VAL_CLOSURE: printf("#<closure>"); break;
+        case VAL_PROTOTYPE: printf("#<prototype>"); break;
+        case VAL_PRIMITIVE: printf("#<primitive>"); break;
+        case VAL_CONTINUATION: printf("#<continuation>"); break;
+        case VAL_RAW: printf("#<raw %p>", v->as.raw); break;
+    }
 }
 
 bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
