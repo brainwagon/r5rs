@@ -18,11 +18,11 @@
 ## Phase 2: Virtual Machine and Compiler Core
 - [x] **Task 1: Instruction Set Design** [78604a6]
   - Define the bytecode instruction set (Load, Store, Call, Jump, etc.).
-- [~] **Task 2: Bytecode Compiler**
+- [x] **Task 2: Bytecode Compiler** [febf9ad]
   - Implement the S-expression parser (Lexer and Parser).
   - Implement the recursive compiler to generate bytecode for basic expressions.
   - Support lexical environment management (nested scopes).
-- [ ] **Task 3: VM Execution Engine**
+- [~] **Task 3: VM Execution Engine**
   - Implement the VM interpreter loop (dispatch loop).
   - Support stack operations and procedure calls.
   - Implement Tail Call Optimization (TCO).
