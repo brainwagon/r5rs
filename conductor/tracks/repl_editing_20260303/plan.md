@@ -4,7 +4,7 @@
 *Goal: Establish the foundation for a custom terminal interface using POSIX termios.*
 
 - [x] Task: Research and define `TerminalState` structure and `termios` configuration for raw mode. b0e78f8
-- [ ] Task: Implement `terminal_enable_raw_mode()` and `terminal_disable_raw_mode()` with proper error handling.
+- [x] Task: Implement `terminal_enable_raw_mode()` and `terminal_disable_raw_mode()` with proper error handling. cbd9ad5
 - [ ] Task: Create a basic input loop that reads characters and echoes them back, handling `Ctrl-D` for EOF.
 - [ ] Task: Implement basic character deletion (Backspace/Ctrl-H) in the raw input loop.
 - [ ] Task: Conductor - User Manual Verification 'Terminal Raw Mode and Basic Input' (Protocol in workflow.md)
