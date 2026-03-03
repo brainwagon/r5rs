@@ -160,6 +160,37 @@ static Value* prim_vector_p(VM* vm, int nargs, Value** args) {
     return make_boolean(nargs == 1 && is_vector(args[0]));
 }
 
+static Value* prim_eqv_p(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) { fprintf(stderr, "eqv? expects 2 args\n"); exit(1); }
+    Value* a = args[0];
+    Value* b = args[1];
+    if (a == b) return make_boolean(true);
+    if (a->type != b->type) return make_boolean(false);
+    if (a->type == VAL_FIXNUM) return make_boolean(a->as.fixnum == b->as.fixnum);
+    if (a->type == VAL_CHAR) return make_boolean(a->as.character == b->as.character);
+    return make_boolean(false);
+}
+
+static Value* prim_memv(VM* vm, int nargs, Value** args) {
+    (void)vm;
+    if (nargs != 2) { fprintf(stderr, "memv expects 2 args\n"); exit(1); }
+    Value* key = args[0];
+    Value* list = args[1];
+    while (is_pair(list)) {
+        Value* car = list->as.pair.car;
+        bool match = false;
+        if (key == car) match = true;
+        else if (key->type == car->type) {
+            if (key->type == VAL_FIXNUM) match = (key->as.fixnum == car->as.fixnum);
+            else if (key->type == VAL_CHAR) match = (key->as.character == car->as.character);
+        }
+        if (match) return list;
+        list = list->as.pair.cdr;
+    }
+    return make_boolean(false);
+}
+
 void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("+"), make_primitive(prim_add));
     set_global(vm, make_symbol("-"), make_primitive(prim_sub));
@@ -185,4 +216,7 @@ void vm_register_primitives(VM* vm) {
     set_global(vm, make_symbol("char?"), make_primitive(prim_char_p));
     set_global(vm, make_symbol("string?"), make_primitive(prim_string_p));
     set_global(vm, make_symbol("vector?"), make_primitive(prim_vector_p));
+    set_global(vm, make_symbol("eqv?"), make_primitive(prim_eqv_p));
+    set_global(vm, make_symbol("memv"), make_primitive(prim_memv));
 }
+

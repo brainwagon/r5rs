@@ -150,6 +150,63 @@ void test_vm_string_vector_primitives(void) {
     TEST_ASSERT_EQUAL(99, r6->as.fixnum);
 }
 
+void test_vm_and_or_cond(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    // and
+    TEST_ASSERT_TRUE(vm_run(&vm, compile(read_str("(and #t #t)"), make_nil(), -1))->as.boolean);
+    TEST_ASSERT_FALSE(vm_run(&vm, compile(read_str("(and #t #f)"), make_nil(), -1))->as.boolean);
+    TEST_ASSERT_EQUAL(42, vm_run(&vm, compile(read_str("(and 1 2 42)"), make_nil(), -1))->as.fixnum);
+    
+    // or
+    TEST_ASSERT_TRUE(vm_run(&vm, compile(read_str("(or #f #t)"), make_nil(), -1))->as.boolean);
+    TEST_ASSERT_EQUAL(1, vm_run(&vm, compile(read_str("(or 1 2)"), make_nil(), -1))->as.fixnum);
+    TEST_ASSERT_FALSE(vm_run(&vm, compile(read_str("(or #f #f)"), make_nil(), -1))->as.boolean);
+    
+    // cond
+    TEST_ASSERT_EQUAL(1, vm_run(&vm, compile(read_str("(cond (#t 1) (else 2))"), make_nil(), -1))->as.fixnum);
+    TEST_ASSERT_EQUAL(2, vm_run(&vm, compile(read_str("(cond (#f 1) (else 2))"), make_nil(), -1))->as.fixnum);
+    TEST_ASSERT_EQUAL(42, vm_run(&vm, compile(read_str("(cond (42))"), make_nil(), -1))->as.fixnum);
+    
+    // cond =>
+    vm_run(&vm, compile(read_str("(define identity (lambda (x) x))"), make_nil(), -1));
+    TEST_ASSERT_EQUAL(42, vm_run(&vm, compile(read_str("(cond (42 => identity) (else 1))"), make_nil(), -1))->as.fixnum);
+}
+
+void test_vm_bindings(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    // let
+    TEST_ASSERT_EQUAL(3, vm_run(&vm, compile(read_str("(let ((x 1) (y 2)) (+ x y))"), make_nil(), -1))->as.fixnum);
+    
+    // named let
+    const char* named_let = "(let loop ((n 5)) (if (zero? n) 42 (loop (- n 1))))";
+    TEST_ASSERT_EQUAL(42, vm_run(&vm, compile(read_str(named_let), make_nil(), -1))->as.fixnum);
+    
+    // let*
+    TEST_ASSERT_EQUAL(3, vm_run(&vm, compile(read_str("(let* ((x 1) (y (+ x 1))) (+ x y))"), make_nil(), -1))->as.fixnum);
+    
+    // letrec
+    const char* letrec_test = "(letrec ((even? (lambda (n) (if (zero? n) #t (odd? (- n 1))))) (odd? (lambda (n) (if (zero? n) #f (even? (- n 1)))))) (even? 10))";
+    TEST_ASSERT_TRUE(vm_run(&vm, compile(read_str(letrec_test), make_nil(), -1))->as.boolean);
+}
+
+void test_vm_case(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    const char* case_test = "(case (* 2 3) ((2 3 5 7) 'prime) ((1 4 6 8 9) 'composite))";
+    TEST_ASSERT_EQUAL_STRING("composite", vm_run(&vm, compile(read_str(case_test), make_nil(), -1))->as.symbol);
+    
+    const char* case_else = "(case 42 ((1 2) 'small) (else 'large))";
+    TEST_ASSERT_EQUAL_STRING("large", vm_run(&vm, compile(read_str(case_else), make_nil(), -1))->as.symbol);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_vm_const);
@@ -162,5 +219,8 @@ int main(void) {
     RUN_TEST(test_vm_lset);
     RUN_TEST(test_vm_list_primitives);
     RUN_TEST(test_vm_string_vector_primitives);
+    RUN_TEST(test_vm_and_or_cond);
+    RUN_TEST(test_vm_bindings);
+    RUN_TEST(test_vm_case);
     return UNITY_END();
 }

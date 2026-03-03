@@ -19,6 +19,7 @@ typedef enum {
     OP_POP,     // [1]
     OP_DEF,     // [1, idx:2]
     OP_CALLCC,  // [1]
+    OP_DUP,     // [1]
 } OpCode;
 
 typedef enum {

@@ -232,6 +232,11 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 pop(vm);
                 break;
             }
+            case OP_DUP: {
+                Value* v = vm->stack[vm->sp - 1];
+                push(vm, v);
+                break;
+            }
             default:
                 fprintf(stderr, "Unknown opcode: %d\n", op);
                 exit(1);

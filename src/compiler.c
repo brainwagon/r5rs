@@ -67,6 +67,209 @@ static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
 
 static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail);
 
+static void compile_body(ProtoBuilder* pb, Value* exprs, Value* env, bool tail) {
+    if (is_nil(exprs)) {
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_nil()));
+        if (tail) pb_emit(pb, OP_RET);
+        return;
+    }
+    while (is_pair(exprs)) {
+        Value* e = exprs->as.pair.car;
+        bool last = is_nil(exprs->as.pair.cdr);
+        compile_expr(pb, e, env, last ? tail : false);
+        if (!last) pb_emit(pb, OP_POP);
+        exprs = exprs->as.pair.cdr;
+    }
+}
+
+static void compile_and(ProtoBuilder* pb, Value* exprs, Value* env, bool tail) {
+    if (is_nil(exprs)) {
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_boolean(true)));
+        if (tail) pb_emit(pb, OP_RET);
+        return;
+    }
+    Value* first = exprs->as.pair.car;
+    Value* rest = exprs->as.pair.cdr;
+    if (is_nil(rest)) {
+        compile_expr(pb, first, env, tail);
+        return;
+    }
+    compile_expr(pb, first, env, false);
+    pb_emit(pb, OP_JF);
+    int jf_pos = pb->len;
+    pb_emit2(pb, 0);
+    compile_and(pb, rest, env, tail);
+    if (!tail) {
+        pb_emit(pb, OP_JUMP);
+        int jump_pos = pb->len;
+        pb_emit2(pb, 0);
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
+        int end_pos = pb->len;
+        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+    } else {
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
+        pb_emit(pb, OP_RET);
+    }
+}
+
+static void compile_or(ProtoBuilder* pb, Value* exprs, Value* env, bool tail) {
+    if (is_nil(exprs)) {
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_boolean(false)));
+        if (tail) pb_emit(pb, OP_RET);
+        return;
+    }
+    Value* first = exprs->as.pair.car;
+    Value* rest = exprs->as.pair.cdr;
+    if (is_nil(rest)) {
+        compile_expr(pb, first, env, tail);
+        return;
+    }
+    compile_expr(pb, first, env, false);
+    pb_emit(pb, OP_DUP);
+    pb_emit(pb, OP_JF);
+    int jf_pos = pb->len;
+    pb_emit2(pb, 0);
+    if (tail) {
+        pb_emit(pb, OP_RET);
+    } else {
+        pb_emit(pb, OP_JUMP);
+        int jump_pos = pb->len;
+        pb_emit2(pb, 0);
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        pb_emit(pb, OP_POP);
+        compile_or(pb, rest, env, false);
+        int end_pos = pb->len;
+        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+        return;
+    }
+    int false_start = pb->len;
+    pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+    pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+    pb_emit(pb, OP_POP);
+    compile_or(pb, rest, env, true);
+}
+
+static void compile_cond(ProtoBuilder* pb, Value* clauses, Value* env, bool tail) {
+    if (is_nil(clauses)) {
+        pb_emit(pb, OP_CONST);
+        pb_emit2(pb, pb_add_constant(pb, make_nil()));
+        if (tail) pb_emit(pb, OP_RET);
+        return;
+    }
+    Value* clause = clauses->as.pair.car;
+    Value* rest = clauses->as.pair.cdr;
+    Value* test = clause->as.pair.car;
+    Value* expressions = clause->as.pair.cdr;
+    bool is_else = (is_symbol(test) && strcmp(test->as.symbol, "else") == 0);
+
+    if (is_else) {
+        compile_body(pb, expressions, env, tail);
+        return;
+    }
+
+    if (is_nil(expressions)) {
+        compile_expr(pb, test, env, false);
+        pb_emit(pb, OP_DUP);
+        pb_emit(pb, OP_JF);
+        int jf_pos = pb->len;
+        pb_emit2(pb, 0);
+        if (tail) {
+            pb_emit(pb, OP_RET);
+        } else {
+            pb_emit(pb, OP_JUMP);
+            int jump_pos = pb->len;
+            pb_emit2(pb, 0);
+            int false_start = pb->len;
+            pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+            pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+            pb_emit(pb, OP_POP);
+            compile_cond(pb, rest, env, false);
+            int end_pos = pb->len;
+            pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+            pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+            return;
+        }
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        pb_emit(pb, OP_POP);
+        compile_cond(pb, rest, env, true);
+        return;
+    }
+
+    if (is_pair(expressions) && is_symbol(expressions->as.pair.car) && strcmp(expressions->as.pair.car->as.symbol, "=>") == 0) {
+        Value* proc = expressions->as.pair.cdr->as.pair.car;
+        compile_expr(pb, test, env, false);
+        pb_emit(pb, OP_DUP);
+        pb_emit(pb, OP_JF);
+        int jf_pos = pb->len;
+        pb_emit2(pb, 0);
+        compile_expr(pb, proc, env, false);
+        pb_emit(pb, OP_CALL);
+        pb_emit(pb, 1);
+        if (tail) {
+            pb_emit(pb, OP_RET);
+        } else {
+            pb_emit(pb, OP_JUMP);
+            int jump_pos = pb->len;
+            pb_emit2(pb, 0);
+            int false_start = pb->len;
+            pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+            pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+            pb_emit(pb, OP_POP);
+            compile_cond(pb, rest, env, false);
+            int end_pos = pb->len;
+            pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+            pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+            return;
+        }
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        pb_emit(pb, OP_POP);
+        compile_cond(pb, rest, env, true);
+        return;
+    }
+
+    compile_expr(pb, test, env, false);
+    pb_emit(pb, OP_JF);
+    int jf_pos = pb->len;
+    pb_emit2(pb, 0);
+    compile_body(pb, expressions, env, tail);
+    if (!tail) {
+        pb_emit(pb, OP_JUMP);
+        int jump_pos = pb->len;
+        pb_emit2(pb, 0);
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        compile_cond(pb, rest, env, false);
+        int end_pos = pb->len;
+        pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+        pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+    } else {
+        int false_start = pb->len;
+        pb->code[jf_pos] = (false_start - jf_pos - 2) >> 8;
+        pb->code[jf_pos + 1] = (false_start - jf_pos - 2) & 0xFF;
+        compile_cond(pb, rest, env, true);
+    }
+}
+
 static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
     if (is_fixnum(expr) || is_boolean(expr) || is_nil(expr) || is_char(expr) || is_string(expr) || is_vector(expr)) {
         int idx = pb_add_constant(pb, expr);
@@ -133,6 +336,143 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
                 }
                 return;
             }
+            if (strcmp(name, "and") == 0) {
+                compile_and(pb, expr->as.pair.cdr, env, tail);
+                return;
+            }
+            if (strcmp(name, "or") == 0) {
+                compile_or(pb, expr->as.pair.cdr, env, tail);
+                return;
+            }
+            if (strcmp(name, "cond") == 0) {
+                compile_cond(pb, expr->as.pair.cdr, env, tail);
+                return;
+            }
+            if (strcmp(name, "case") == 0) {
+                Value* key_expr = expr->as.pair.cdr->as.pair.car;
+                Value* clauses = expr->as.pair.cdr->as.pair.cdr;
+                Value* temp_sym = make_symbol("%%case-temp");
+                Value* cond_clauses = make_nil();
+                Value* c = clauses;
+                while (is_pair(c)) {
+                    Value* clause = c->as.pair.car;
+                    Value* data = clause->as.pair.car;
+                    Value* exprs = clause->as.pair.cdr;
+                    Value* cond_clause;
+                    if (is_symbol(data) && strcmp(data->as.symbol, "else") == 0) {
+                        cond_clause = make_pair(make_symbol("else"), exprs);
+                    } else {
+                        Value* test = make_pair(make_symbol("memv"), make_pair(temp_sym, make_pair(make_pair(make_symbol("quote"), make_pair(data, make_nil())), make_nil())));
+                        cond_clause = make_pair(test, exprs);
+                    }
+                    cond_clauses = make_pair(cond_clause, cond_clauses);
+                    c = c->as.pair.cdr;
+                }
+                Value* r_clauses = make_nil();
+                while (is_pair(cond_clauses)) {
+                    r_clauses = make_pair(cond_clauses->as.pair.car, r_clauses);
+                    cond_clauses = cond_clauses->as.pair.cdr;
+                }
+                Value* cond = make_pair(make_symbol("cond"), r_clauses);
+                Value* let = make_pair(make_symbol("let"), make_pair(make_pair(make_pair(temp_sym, make_pair(key_expr, make_nil())), make_nil()), make_pair(cond, make_nil())));
+                compile_expr(pb, let, env, tail);
+                return;
+            }
+            if (strcmp(name, "let") == 0) {
+                Value* cdr = expr->as.pair.cdr;
+                Value* bindings = cdr->as.pair.car;
+                Value* body = cdr->as.pair.cdr;
+                
+                if (is_symbol(bindings)) {
+                    Value* name_val = bindings;
+                    bindings = cdr->as.pair.cdr->as.pair.car;
+                    body = cdr->as.pair.cdr->as.pair.cdr;
+                    Value* vars = make_nil();
+                    Value* vals = make_nil();
+                    Value* b = bindings;
+                    while (is_pair(b)) {
+                        Value* binding = b->as.pair.car;
+                        vars = make_pair(binding->as.pair.car, vars);
+                        vals = make_pair(binding->as.pair.cdr->as.pair.car, vals);
+                        b = b->as.pair.cdr;
+                    }
+                    Value* rvars = make_nil();
+                    Value* rvals = make_nil();
+                    while (is_pair(vars)) {
+                        rvars = make_pair(vars->as.pair.car, rvars);
+                        rvals = make_pair(vals->as.pair.car, rvals);
+                        vars = vars->as.pair.cdr;
+                        vals = vals->as.pair.cdr;
+                    }
+                    Value* lambda = make_pair(make_symbol("lambda"), make_pair(rvars, body));
+                    Value* letrec_bindings = make_pair(make_pair(name_val, make_pair(lambda, make_nil())), make_nil());
+                    Value* call = make_pair(name_val, rvals);
+                    Value* letrec = make_pair(make_symbol("letrec"), make_pair(letrec_bindings, make_pair(call, make_nil())));
+                    compile_expr(pb, letrec, env, tail);
+                    return;
+                }
+                
+                Value* vars = make_nil();
+                Value* vals = make_nil();
+                Value* b = bindings;
+                while (is_pair(b)) {
+                    Value* binding = b->as.pair.car;
+                    vars = make_pair(binding->as.pair.car, vars);
+                    vals = make_pair(binding->as.pair.cdr->as.pair.car, vals);
+                    b = b->as.pair.cdr;
+                }
+                Value* rvars = make_nil();
+                Value* rvals = make_nil();
+                while (is_pair(vars)) {
+                    rvars = make_pair(vars->as.pair.car, rvars);
+                    rvals = make_pair(vals->as.pair.car, rvals);
+                    vars = vars->as.pair.cdr;
+                    vals = vals->as.pair.cdr;
+                }
+                Value* lambda = make_pair(make_symbol("lambda"), make_pair(rvars, body));
+                Value* call = make_pair(lambda, rvals);
+                compile_expr(pb, call, env, tail);
+                return;
+            }
+            if (strcmp(name, "let*") == 0) {
+                Value* bindings = expr->as.pair.cdr->as.pair.car;
+                Value* body = expr->as.pair.cdr->as.pair.cdr;
+                if (is_nil(bindings)) {
+                    Value* begin = make_pair(make_symbol("begin"), body);
+                    compile_expr(pb, begin, env, tail);
+                } else {
+                    Value* first = bindings->as.pair.car;
+                    Value* rest = bindings->as.pair.cdr;
+                    Value* next_let = make_pair(make_symbol("let*"), make_pair(rest, body));
+                    Value* outer_let = make_pair(make_symbol("let"), make_pair(make_pair(first, make_nil()), make_pair(next_let, make_nil())));
+                    compile_expr(pb, outer_let, env, tail);
+                }
+                return;
+            }
+            if (strcmp(name, "letrec") == 0) {
+                Value* bindings = expr->as.pair.cdr->as.pair.car;
+                Value* body = expr->as.pair.cdr->as.pair.cdr;
+                Value* inits = make_nil();
+                Value* sets = make_nil();
+                Value* b = bindings;
+                while (is_pair(b)) {
+                    Value* binding = b->as.pair.car;
+                    Value* var = binding->as.pair.car;
+                    Value* val = binding->as.pair.cdr->as.pair.car;
+                    inits = make_pair(make_pair(var, make_pair(make_boolean(false), make_nil())), inits);
+                    sets = make_pair(make_pair(make_symbol("set!"), make_pair(var, make_pair(val, make_nil()))), sets);
+                    b = b->as.pair.cdr;
+                }
+                Value* new_body = body;
+                Value* s = sets;
+                while (is_pair(s)) {
+                    new_body = make_pair(s->as.pair.car, new_body);
+                    s = s->as.pair.cdr;
+                }
+                Value* new_let = make_pair(make_symbol("let"), make_pair(inits, new_body));
+                compile_expr(pb, new_let, env, tail);
+                return;
+            }
             if (strcmp(name, "define") == 0) {
                 Value* sym = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
@@ -163,31 +503,12 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
                 return;
             }
             if (strcmp(name, "begin") == 0) {
-                Value* exprs = expr->as.pair.cdr;
-                if (is_nil(exprs)) {
-                    // Empty begin returns unspecified, let's say NIL
-                    pb_emit(pb, OP_CONST);
-                    pb_emit2(pb, pb_add_constant(pb, make_nil()));
-                    if (tail) pb_emit(pb, OP_RET);
-                    return;
-                }
-                while (is_pair(exprs)) {
-                    Value* e = exprs->as.pair.car;
-                    exprs = exprs->as.pair.cdr;
-                    if (is_nil(exprs)) {
-                        // Last expression
-                        compile_expr(pb, e, env, tail);
-                    } else {
-                        // Not last, ignore result
-                        compile_expr(pb, e, env, false);
-                        pb_emit(pb, OP_POP);
-                    }
-                }
+                compile_body(pb, expr->as.pair.cdr, env, tail);
                 return;
             }
             if (strcmp(name, "lambda") == 0) {
                 Value* params = expr->as.pair.cdr->as.pair.car;
-                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+                Value* body = expr->as.pair.cdr->as.pair.cdr;
                 
                 int num_args = 0;
                 Value* p = params;
@@ -214,7 +535,6 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
             }
         }
         
-        // Procedure call
         Value* args = expr->as.pair.cdr;
         int nargs = 0;
         while (is_pair(args)) {
@@ -233,8 +553,12 @@ Value* compile(Value* expr, Value* env, int num_args) {
     ProtoBuilder pb;
     pb_init(&pb);
     bool is_lambda = (num_args >= 0);
-    compile_expr(&pb, expr, env, is_lambda);
-    if (!is_lambda) pb_emit(&pb, OP_HALT);
+    if (is_lambda) {
+        compile_body(&pb, expr, env, true);
+    } else {
+        compile_expr(&pb, expr, env, false);
+        pb_emit(&pb, OP_HALT);
+    }
     
     unsigned char* code = malloc(pb.len);
     memcpy(code, pb.code, pb.len);
