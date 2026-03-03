@@ -1,6 +1,7 @@
 #include <unity.h>
 #include <scheme.h>
 #include <reader.h>
+#include <bignum.h>
 #include <stdlib.h>
 
 void setUp(void) {
@@ -132,6 +133,27 @@ void test_read_vector(void) {
     TEST_ASSERT_EQUAL(3, v->as.vector.elements[2]->as.fixnum);
 }
 
+void test_read_real(void) {
+    const char* input = "3.14159";
+    const char* p = input;
+    Value* v = read_sexpr_str(&p);
+    TEST_ASSERT_NOT_NULL(v);
+    TEST_ASSERT_TRUE(is_real(v));
+    TEST_ASSERT_EQUAL_FLOAT(3.14159, v->as.real);
+}
+
+void test_read_large_int(void) {
+    // 12345678901234567890 > 2^63-1
+    const char* input = "12345678901234567890";
+    const char* p = input;
+    Value* v = read_sexpr_str(&p);
+    TEST_ASSERT_NOT_NULL(v);
+    TEST_ASSERT_TRUE(is_bignum(v));
+    char* s = bignum_to_string(v);
+    TEST_ASSERT_EQUAL_STRING(input, s);
+    free(s);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_read_fixnum);
@@ -144,5 +166,7 @@ int main(void) {
     RUN_TEST(test_read_string);
     RUN_TEST(test_read_char);
     RUN_TEST(test_read_vector);
+    RUN_TEST(test_read_real);
+    RUN_TEST(test_read_large_int);
     return UNITY_END();
 }

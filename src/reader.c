@@ -1,8 +1,10 @@
 #include <reader.h>
+#include <bignum.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 static void skip_whitespace(const char** input) {
     while (**input && (isspace(**input) || **input == ';')) {
@@ -25,7 +27,6 @@ static Value* read_list(const char** input) {
     
     skip_whitespace(input);
     if (**input == '.') {
-        // Check if it's a dotted pair or just a symbol starting with '.'
         const char* next = (*input) + 1;
         if (isspace(*next) || *next == '(' || *next == ')' || *next == ';' || *next == '\0') {
             (*input)++;
@@ -40,6 +41,51 @@ static Value* read_list(const char** input) {
     
     Value* cdr = read_list(input);
     return make_pair(car, cdr);
+}
+
+static Value* parse_numeric_atom(const char* atom) {
+    char* endptr;
+    
+    // Check if it's a real (contains '.')
+    if (strchr(atom, '.')) {
+        double d = strtod(atom, &endptr);
+        if (*endptr == '\0') return make_real(d);
+    }
+    
+    // Try parsing as fixnum
+    errno = 0;
+    long n = strtol(atom, &endptr, 10);
+    if (*endptr == '\0' && (isdigit(atom[0]) || ((atom[0] == '-' || atom[0] == '+') && isdigit(atom[1])))) {
+        if (errno != ERANGE) return make_fixnum(n);
+    } else {
+        // Not a standard number format for strtol if it doesn't start with digit or sign+digit
+        // But strtol might parse "+" as 0? No, strtol says "If no conversion could be performed, 0 is returned".
+        // Scheme numbers must have digits.
+        if (!isdigit(atom[0]) && !((atom[0] == '-' || atom[0] == '+') && isdigit(atom[1]))) return NULL;
+    }
+    
+    // Fallback to bignum
+    int sign = 1;
+    const char* p = atom;
+    if (*p == '-') { sign = -1; p++; }
+    else if (*p == '+') { p++; }
+    
+    if (!isdigit(*p)) return NULL; // Must have at least one digit
+    
+    Value* res = bignum_from_long(0);
+    Value* ten = bignum_from_long(10);
+    while (*p >= '0' && *p <= '9') {
+        Value* digit = bignum_from_long(*p - '0');
+        Value* next_res = bignum_mul(res, ten);
+        res = bignum_add(next_res, digit);
+        p++;
+    }
+    if (*p == '\0') {
+        res->as.bignum.sign = sign;
+        return res;
+    }
+    
+    return NULL; // Not a number
 }
 
 Value* read_sexpr_str(const char** input) {
@@ -143,11 +189,10 @@ Value* read_sexpr_str(const char** input) {
     strncpy(atom, start, len);
     atom[len] = '\0';
 
-    char* endptr;
-    long n = strtol(atom, &endptr, 10);
-    if (*endptr == '\0') {
+    Value* num = parse_numeric_atom(atom);
+    if (num) {
         free(atom);
-        return make_fixnum(n);
+        return num;
     }
 
     Value* sym = make_symbol(atom);
