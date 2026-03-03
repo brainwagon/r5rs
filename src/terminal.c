@@ -42,3 +42,44 @@ int terminal_disable_raw_mode(TerminalState* state) {
     state->raw_mode_enabled = 0;
     return 0;
 }
+
+int terminal_read_char(TerminalState* state) {
+    (void)state;
+    char c;
+    int nread;
+    while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
+        if (nread == -1 && (state->raw_mode_enabled == 0)) return -1;
+        if (nread == 0) return 0; // EOF
+    }
+    return c;
+}
+
+int terminal_write_char(char c) {
+    if (write(STDOUT_FILENO, &c, 1) != 1) return -1;
+    return 0;
+}
+
+int terminal_write_str(const char* s) {
+    size_t len = strlen(s);
+    if (write(STDOUT_FILENO, s, len) != (ssize_t)len) return -1;
+    return 0;
+}
+
+int terminal_readline_basic(TerminalState* state, char* buf, int max_len) {
+    int len = 0;
+    while (len < max_len - 1) {
+        int c = terminal_read_char(state);
+        if (c <= 0) break; // EOF or Error
+        if (c == 4) break; // Ctrl-D
+        if (c == '\n' || c == '\r') {
+            terminal_write_str("\r\n");
+            break;
+        }
+        
+        // Basic echo
+        terminal_write_char((char)c);
+        buf[len++] = (char)c;
+    }
+    buf[len] = '\0';
+    return len;
+}
