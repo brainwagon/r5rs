@@ -34,10 +34,10 @@
   - Update the stack and VM state to handle non-local control flow.
 - [x] **Task 2: Built-in Procedures** [2c2c325]
   - Implement essential R5RS primitives (Arithmetic, List manipulation, Predicates).
-- [~] **Task 3: REPL and File Loader**
+- [x] **Task 3: REPL and File Loader** [77a88f8]
   - Implement the interactive Read-Eval-Print-Loop with ANSI color support.
   - Support loading and executing Scheme files from the command line.
-- [ ] **Task 4: Final Verification and Cleanup**
+- [~] **Task 4: Final Verification and Cleanup**
   - Perform comprehensive testing against the R5RS core requirements.
   - Run Valgrind to ensure no memory leaks and perform final refactoring.
 - [ ] **Task 5: Conductor - User Manual Verification 'Phase 3: Advanced Features and Interface' (Protocol in workflow.md)**
