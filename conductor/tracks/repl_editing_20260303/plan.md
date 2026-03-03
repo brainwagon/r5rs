@@ -1,13 +1,13 @@
 # Implementation Plan: Improved REPL Command Line Editing
 
-## Phase 1: Terminal Raw Mode and Basic Input
+## Phase 1: Terminal Raw Mode and Basic Input [checkpoint: 8a09913]
 *Goal: Establish the foundation for a custom terminal interface using POSIX termios.*
 
 - [x] Task: Research and define `TerminalState` structure and `termios` configuration for raw mode. b0e78f8
 - [x] Task: Implement `terminal_enable_raw_mode()` and `terminal_disable_raw_mode()` with proper error handling. cbd9ad5
 - [x] Task: Create a basic input loop that reads characters and echoes them back, handling `Ctrl-D` for EOF. 6f27585, 8469dce
 - [x] Task: Implement basic character deletion (Backspace/Ctrl-H) in the raw input loop. 269f9c9
-- [ ] Task: Conductor - User Manual Verification 'Terminal Raw Mode and Basic Input' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Terminal Raw Mode and Basic Input' (Protocol in workflow.md)
 
 ## Phase 2: Advanced Line Editing and Keybindings
 *Goal: Implement standard line editing capabilities and cursor navigation.*
