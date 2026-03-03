@@ -11,7 +11,7 @@
   - Implement comparison and string conversion.
 
 ## Phase 2: Reader and Dispatch
-- [~] **Task 1: Lexical Support**
+- [x] **Task 1: Lexical Support** [22cd660]
   - Update `src/reader.c` to handle floats (e.g. `3.14`) and large integers.
 - [~] **Task 2: Numeric Dispatch**
   - Refactor `src/primitives.c` to use a generic numeric dispatch system.
