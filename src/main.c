@@ -36,6 +36,7 @@ static void repl(VM* vm) {
         printf(COLOR_RESET "\n");
         
         gc_collect();
+        // printf("[GC: %d objects]\n", gc_get_object_count());
     }
     printf("\nGoodbye!\n");
 }
@@ -65,6 +66,7 @@ static void load_file(VM* vm, const char* filename) {
         print_value(result);
         printf("\n");
         gc_collect();
+        // printf("[GC: %d objects]\n", gc_get_object_count());
     }
     free(content);
 }

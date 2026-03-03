@@ -32,6 +32,16 @@ void gc_add_root(Value** root) {
     }
 }
 
+int gc_get_object_count(void) {
+    int count = 0;
+    Value* v = all_objects;
+    while (v) {
+        count++;
+        v = v->next;
+    }
+    return count;
+}
+
 static void mark_object(Value* v) {
     if (!v || v->marked) return;
     v->marked = true;

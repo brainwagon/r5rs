@@ -86,6 +86,7 @@ void gc_init(void);
 Value* gc_alloc(ValueType type);
 void gc_collect(void);
 void gc_add_root(Value** root);
+int gc_get_object_count(void);
 
 bool is_fixnum(Value* v);
 bool is_boolean(Value* v);
