@@ -94,6 +94,28 @@ void test_vm_lset(void) {
     TEST_ASSERT_EQUAL(42, r->as.fixnum);
 }
 
+void test_vm_list_primitives(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    Value* r1 = vm_run(&vm, compile(read_str("(car (cons 1 2))"), make_nil(), -1));
+    TEST_ASSERT_EQUAL(1, r1->as.fixnum);
+
+    Value* r2 = vm_run(&vm, compile(read_str("(cdr (cons 1 2))"), make_nil(), -1));
+    TEST_ASSERT_EQUAL(2, r2->as.fixnum);
+
+    Value* r3 = vm_run(&vm, compile(read_str("(pair? (cons 1 2))"), make_nil(), -1));
+    TEST_ASSERT_TRUE(r3->as.boolean);
+
+    Value* r4 = vm_run(&vm, compile(read_str("(null? '())"), make_nil(), -1));
+    TEST_ASSERT_TRUE(r4->as.boolean);
+
+    Value* r5 = vm_run(&vm, compile(read_str("(list 1 2 3)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_pair(r5));
+    TEST_ASSERT_EQUAL(1, r5->as.pair.car->as.fixnum);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_vm_const);
@@ -104,5 +126,6 @@ int main(void) {
     RUN_TEST(test_vm_primitives);
     RUN_TEST(test_vm_callcc);
     RUN_TEST(test_vm_lset);
+    RUN_TEST(test_vm_list_primitives);
     return UNITY_END();
 }
