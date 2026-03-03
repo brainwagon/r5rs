@@ -8,4 +8,6 @@ This file tracks all major tracks for the project. Each track has its own detail
   *Link: [./tracks/core_vm_20260302/](./tracks/core_vm_20260302/)*
 - [x] **Track: Add Strings, Vectors, and Characters**
   *Link: [./tracks/datatypes_20260303/](./tracks/datatypes_20260303/)*
+- [x] **Track: Implement R5RS Derived Expressions**
+  *Link: [./tracks/derived_exprs_20260303/](./tracks/derived_exprs_20260303/)*
 
