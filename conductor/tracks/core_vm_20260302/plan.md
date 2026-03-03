@@ -9,7 +9,7 @@
   - Design the `Value` type (tagged union or similar).
   - Implement primitive constructors for Fixnums, Booleans, and Nil.
   - Implement the `Symbol` registry and `Pair` (Cons) structure.
-- [ ] **Task 3: Basic Memory Management**
+- [x] **Task 3: Basic Memory Management** [1db6e68]
   - Implement a basic allocator for Scheme objects.
   - Implement a simple mark-and-sweep garbage collector.
   - Write unit tests to verify allocation and basic collection.
