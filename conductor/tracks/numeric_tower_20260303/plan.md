@@ -13,11 +13,11 @@
 ## Phase 2: Reader and Dispatch
 - [x] **Task 1: Lexical Support** [22cd660]
   - Update `src/reader.c` to handle floats (e.g. `3.14`) and large integers.
-- [~] **Task 2: Numeric Dispatch**
+- [x] **Task 2: Numeric Dispatch** [e18f4ce]
   - Refactor `src/primitives.c` to use a generic numeric dispatch system.
   - Implement "coercion" (fixnum -> bignum -> real).
 
 ## Phase 3: Verification
-- [ ] **Task 1: Testing**
+- [x] **Task 1: Testing** [e18f4ce]
   - Unit tests for large integer arithmetic.
   - Verification of numeric tower semantics.
