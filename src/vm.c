@@ -9,6 +9,7 @@ void vm_init(VM* vm) {
     vm->sp = 0;
     vm->globals = make_nil();
     gc_add_root(&vm->globals);
+    gc_set_stack_root(&vm->stack, &vm->sp);
     vm->running = false;
 }
 
@@ -22,7 +23,7 @@ static void push(VM* vm, Value* v) {
 
 static Value* pop(VM* vm) {
     if (vm->sp == 0) {
-        fprintf(stderr, "Stack underflow\n");
+        fprintf(stderr, "Stack underflow at PC offset %ld\n", vm->pc - vm->top_proto->as.proto.code);
         exit(1);
     }
     return vm->stack[--vm->sp];

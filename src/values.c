@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include <scheme.h>
+#include <bignum.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -164,11 +165,9 @@ void print_value(Value* v) {
             printf(")");
             break;
         case VAL_BIGNUM: {
-            if (v->as.bignum.sign == -1) printf("-");
-            // Simple decimal print for bignums is hard if base is not 10^9
-            // For now, let's just print hex or something if base was 2^32.
-            // Actually, I'll implement a proper print_bignum later.
-            printf("#<bignum %d digits>", v->as.bignum.len);
+            char* s = bignum_to_string(v);
+            printf("%s", s);
+            free(s);
             break;
         }
         case VAL_REAL: printf("%g", v->as.real); break;

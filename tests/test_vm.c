@@ -3,6 +3,7 @@
 #include <reader.h>
 #include <compiler.h>
 #include <vm.h>
+#include <bignum.h>
 #include <stdlib.h>
 
 void setUp(void) {
@@ -207,6 +208,36 @@ void test_vm_case(void) {
     TEST_ASSERT_EQUAL_STRING("large", vm_run(&vm, compile(read_str(case_else), make_nil(), -1))->as.symbol);
 }
 
+void test_vm_numeric_tower(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    // Fixnum overflow to bignum
+    // 2^62 + 2^62 = 2^63
+    const char* add_overflow = "(+ 4611686018427387904 4611686018427387904)";
+    Value* r1 = vm_run(&vm, compile(read_str(add_overflow), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_bignum(r1));
+    char* s1 = bignum_to_string(r1);
+    TEST_ASSERT_EQUAL_STRING("9223372036854775808", s1);
+    free(s1);
+    
+    // Real operations
+    Value* r2 = vm_run(&vm, compile(read_str("(+ 1.5 2.5)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_real(r2));
+    TEST_ASSERT_EQUAL_FLOAT(4.0, r2->as.real);
+    
+    // Factorial with bignums
+    const char* fact_def = "(define fact (lambda (n) (if (zero? n) 1 (* n (fact (- n 1))))))";
+    vm_run(&vm, compile(read_str(fact_def), make_nil(), -1));
+    
+    Value* r3 = vm_run(&vm, compile(read_str("(fact 30)"), make_nil(), -1));
+    TEST_ASSERT_TRUE(is_bignum(r3));
+    char* s3 = bignum_to_string(r3);
+    TEST_ASSERT_EQUAL_STRING("265252859812191058636308480000000", s3);
+    free(s3);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_vm_const);
@@ -222,5 +253,6 @@ int main(void) {
     RUN_TEST(test_vm_and_or_cond);
     RUN_TEST(test_vm_bindings);
     RUN_TEST(test_vm_case);
+    RUN_TEST(test_vm_numeric_tower);
     return UNITY_END();
 }

@@ -271,7 +271,7 @@ static void compile_cond(ProtoBuilder* pb, Value* clauses, Value* env, bool tail
 }
 
 static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
-    if (is_fixnum(expr) || is_boolean(expr) || is_nil(expr) || is_char(expr) || is_string(expr) || is_vector(expr)) {
+    if (is_fixnum(expr) || is_boolean(expr) || is_nil(expr) || is_char(expr) || is_string(expr) || is_vector(expr) || is_bignum(expr) || is_real(expr)) {
         int idx = pb_add_constant(pb, expr);
         pb_emit(pb, OP_CONST);
         pb_emit2(pb, idx);

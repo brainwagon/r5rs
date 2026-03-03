@@ -8,12 +8,30 @@ static Value* all_objects = NULL;
 static Value** roots[MAX_ROOTS];
 static int roots_count = 0;
 
+static Value*** stack_root_ptr = NULL;
+static int* stack_sp_ptr = NULL;
+
 void gc_init(void) {
     all_objects = NULL;
     roots_count = 0;
+    stack_root_ptr = NULL;
+    stack_sp_ptr = NULL;
+}
+
+void gc_add_root(Value** root) {
+    if (roots_count < MAX_ROOTS) {
+        roots[roots_count++] = root;
+    }
+}
+
+void gc_set_stack_root(Value*** stack, int* sp) {
+    stack_root_ptr = stack;
+    stack_sp_ptr = sp;
 }
 
 Value* gc_alloc(ValueType type) {
+    // For now, let's just alloc. If we want to trigger GC frequently for testing:
+    // gc_collect(); 
     Value* v = malloc(sizeof(Value));
     if (!v) {
         perror("malloc failed");
@@ -24,12 +42,6 @@ Value* gc_alloc(ValueType type) {
     v->next = all_objects;
     all_objects = v;
     return v;
-}
-
-void gc_add_root(Value** root) {
-    if (roots_count < MAX_ROOTS) {
-        roots[roots_count++] = root;
-    }
 }
 
 int gc_get_object_count(void) {
@@ -100,6 +112,13 @@ static void sweep(void) {
 void gc_collect(void) {
     for (int i = 0; i < roots_count; i++) {
         mark_object(*roots[i]);
+    }
+    if (stack_root_ptr && stack_sp_ptr) {
+        Value** stack = *stack_root_ptr;
+        int sp = *stack_sp_ptr;
+        for (int i = 0; i < sp; i++) {
+            mark_object(stack[i]);
+        }
     }
     sweep();
 }
