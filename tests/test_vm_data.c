@@ -1,4 +1,5 @@
 #include <unity.h>
+struct VM* global_vm_ptr = NULL;
 #include <scheme.h>
 #include <stdlib.h>
 

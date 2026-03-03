@@ -9,6 +9,8 @@ void vm_init(VM* vm) {
     vm->sp = 0;
     vm->globals = make_nil();
     gc_add_root(&vm->globals);
+    vm->syntax_env = make_nil();
+    gc_add_root(&vm->syntax_env);
     gc_set_stack_root(&vm->stack, &vm->sp);
     vm->running = false;
 }

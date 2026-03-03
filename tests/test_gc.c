@@ -1,5 +1,6 @@
 #include <unity.h>
 #include <scheme.h>
+struct VM* global_vm_ptr = NULL;
 #include <stdbool.h>
 
 void setUp(void) {

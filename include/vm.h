@@ -8,6 +8,7 @@ typedef struct VM {
     int stack_cap;
     int sp;
     Value* globals;
+    Value* syntax_env;
     
     // Execution state for call/cc
     unsigned char* pc;
@@ -15,6 +16,8 @@ typedef struct VM {
     Value* top_proto;
     bool running;
 } VM;
+
+extern VM* global_vm_ptr;
 
 void vm_init(VM* vm);
 void vm_register_primitives(VM* vm);

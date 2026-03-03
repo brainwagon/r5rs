@@ -12,6 +12,8 @@
 #define COLOR_GREEN  "\x1b[32m"
 #define COLOR_RED    "\x1b[31m"
 
+VM* global_vm_ptr = NULL;
+
 static void welcome(void) {
     printf(COLOR_BOLD COLOR_CYAN "Welcome to R5RS Scheme VM\n" COLOR_RESET);
     printf("Type expressions at the prompt. Press Ctrl+D to exit.\n\n");
@@ -28,7 +30,7 @@ static void repl(VM* vm) {
         Value* expr = read_sexpr_str(&p);
         if (!expr) continue;
         
-        Value* proto = compile(expr, make_nil(), -1);
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1);
         Value* result = vm_run(vm, proto);
         
         printf(COLOR_CYAN);
@@ -36,7 +38,6 @@ static void repl(VM* vm) {
         printf(COLOR_RESET "\n");
         
         gc_collect();
-        // printf("[GC: %d objects]\n", gc_get_object_count());
     }
     printf("\nGoodbye!\n");
 }
@@ -61,12 +62,11 @@ static void load_file(VM* vm, const char* filename) {
     while (*p) {
         Value* expr = read_sexpr_str(&p);
         if (!expr) break;
-        Value* proto = compile(expr, make_nil(), -1);
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1);
         Value* result = vm_run(vm, proto);
         print_value(result);
         printf("\n");
         gc_collect();
-        // printf("[GC: %d objects]\n", gc_get_object_count());
     }
     free(content);
 }
@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
     VM vm;
     vm_init(&vm);
     vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
     
     if (argc > 1) {
         for (int i = 1; i < argc; i++) {

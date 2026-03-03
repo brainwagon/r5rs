@@ -2,6 +2,7 @@
 #include <scheme.h>
 #include <bignum.h>
 #include <stdlib.h>
+struct VM* global_vm_ptr = NULL;
 #include <string.h>
 
 void setUp(void) {

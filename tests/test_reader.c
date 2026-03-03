@@ -3,6 +3,7 @@
 #include <reader.h>
 #include <bignum.h>
 #include <stdlib.h>
+struct VM* global_vm_ptr = NULL;
 
 void setUp(void) {
     gc_init();
