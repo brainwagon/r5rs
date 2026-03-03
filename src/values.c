@@ -61,8 +61,40 @@ Value* make_pair(Value* car, Value* cdr) {
     return v;
 }
 
+Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args) {
+    Value* v = gc_alloc(VAL_PROTOTYPE);
+    if (v) {
+        v->as.proto.code = code;
+        v->as.proto.code_len = code_len;
+        v->as.proto.constants = constants;
+        v->as.proto.num_constants = num_constants;
+        v->as.proto.num_args = num_args;
+    }
+    return v;
+}
+
+Value* make_closure(Value* proto, Value* env) {
+    Value* v = gc_alloc(VAL_CLOSURE);
+    if (v) {
+        v->as.closure.proto = proto;
+        v->as.closure.env = env;
+    }
+    return v;
+}
+
+Value* make_primitive(Value* (*primitive)(int nargs, Value** args)) {
+    Value* v = gc_alloc(VAL_PRIMITIVE);
+    if (v) {
+        v->as.primitive = primitive;
+    }
+    return v;
+}
+
 bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
 bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
 bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
 bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
 bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }
+bool is_closure(Value* v) { return v && v->type == VAL_CLOSURE; }
+bool is_proto(Value* v) { return v && v->type == VAL_PROTOTYPE; }
+bool is_primitive(Value* v) { return v && v->type == VAL_PRIMITIVE; }

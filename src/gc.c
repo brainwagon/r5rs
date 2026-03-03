@@ -40,6 +40,13 @@ static void mark_object(Value* v) {
     if (v->type == VAL_PAIR) {
         mark_object(v->as.pair.car);
         mark_object(v->as.pair.cdr);
+    } else if (v->type == VAL_PROTOTYPE) {
+        for (int i = 0; i < v->as.proto.num_constants; i++) {
+            mark_object(v->as.proto.constants[i]);
+        }
+    } else if (v->type == VAL_CLOSURE) {
+        mark_object(v->as.closure.proto);
+        mark_object(v->as.closure.env);
     }
     // Note: Symbols use a char* string that is not a Value, 
     // so we don't need to mark it, but we'll need to free it.
@@ -54,6 +61,9 @@ static void sweep(void) {
             
             if (unreached->type == VAL_SYMBOL) {
                 free((void*)unreached->as.symbol);
+            } else if (unreached->type == VAL_PROTOTYPE) {
+                free(unreached->as.proto.code);
+                free(unreached->as.proto.constants);
             }
             free(unreached);
         } else {

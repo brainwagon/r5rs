@@ -13,10 +13,10 @@
   - Implement a basic allocator for Scheme objects.
   - Implement a simple mark-and-sweep garbage collector.
   - Write unit tests to verify allocation and basic collection.
-- [~] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]' (Protocol in workflow.md)**
+- [x] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]' (Protocol in workflow.md)** [5ce6e89]
 
 ## Phase 2: Virtual Machine and Compiler Core
-- [ ] **Task 1: Instruction Set Design**
+- [~] **Task 1: Instruction Set Design**
   - Define the bytecode instruction set (Load, Store, Call, Jump, etc.).
 - [ ] **Task 2: Bytecode Compiler**
   - Implement the S-expression parser (Lexer and Parser).
