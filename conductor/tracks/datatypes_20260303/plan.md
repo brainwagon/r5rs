@@ -22,7 +22,7 @@
 - [x] **Task 1: Type Primitives** [39630f0]
   - Implement R5RS primitives in `src/primitives.c` (e.g., `make-string`, `string-ref`, `string-set!`, `make-vector`, `vector-ref`, `vector-set!`, `char?`, `string?`, `vector?`).
   - Register new primitives in `vm_register_primitives`.
-- [~] **Task 2: Testing and Cleanup**
+- [x] **Task 2: Testing and Cleanup** [e941ffc]
   - Add C unit tests for all new datatypes, reader extensions, and primitive procedures.
   - Run Valgrind or GC counts to verify memory stability.
   - Final test run and coverage check.

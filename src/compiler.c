@@ -162,6 +162,29 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }
+            if (strcmp(name, "begin") == 0) {
+                Value* exprs = expr->as.pair.cdr;
+                if (is_nil(exprs)) {
+                    // Empty begin returns unspecified, let's say NIL
+                    pb_emit(pb, OP_CONST);
+                    pb_emit2(pb, pb_add_constant(pb, make_nil()));
+                    if (tail) pb_emit(pb, OP_RET);
+                    return;
+                }
+                while (is_pair(exprs)) {
+                    Value* e = exprs->as.pair.car;
+                    exprs = exprs->as.pair.cdr;
+                    if (is_nil(exprs)) {
+                        // Last expression
+                        compile_expr(pb, e, env, tail);
+                    } else {
+                        // Not last, ignore result
+                        compile_expr(pb, e, env, false);
+                        pb_emit(pb, OP_POP);
+                    }
+                }
+                return;
+            }
             if (strcmp(name, "lambda") == 0) {
                 Value* params = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
