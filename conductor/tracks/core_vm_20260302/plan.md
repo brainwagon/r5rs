@@ -16,9 +16,9 @@
 - [x] **Task 4: Conductor - User Manual Verification 'Phase 1: Foundation and Data Structures [checkpoint: 5ce6e89]' (Protocol in workflow.md)** [5ce6e89]
 
 ## Phase 2: Virtual Machine and Compiler Core
-- [~] **Task 1: Instruction Set Design**
+- [x] **Task 1: Instruction Set Design** [78604a6]
   - Define the bytecode instruction set (Load, Store, Call, Jump, etc.).
-- [ ] **Task 2: Bytecode Compiler**
+- [~] **Task 2: Bytecode Compiler**
   - Implement the S-expression parser (Lexer and Parser).
   - Implement the recursive compiler to generate bytecode for basic expressions.
   - Support lexical environment management (nested scopes).
