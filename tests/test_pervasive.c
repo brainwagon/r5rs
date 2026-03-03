@@ -7,6 +7,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * Pervasive Language Tests Mapping (r5rs_pitfall.scm):
+ * 
+ * 1.1 Proper letrec implementation -> test_pervasive_letrec_reentry (Fails/Segfaults)
+ * 2.1 call/cc and procedure application -> test_pervasive_callcc_app (Passes)
+ * 3.1 Hygienic macros (let-syntax) -> test_pervasive_hygiene_plus (Fails - unhygienic)
+ * 4.1 No identifiers are reserved -> test_pervasive_identifier_shadowing (Passes)
+ * 5.1-5.3 #f/() distinctness -> test_pervasive_f_null_distinct (Passes)
+ * 6.1 string->symbol case sensitivity -> test_pervasive_symbol_case (Passes)
+ * 7.1 Captured continuation modification -> test_pervasive_cont_mutation (Fails - stack capture)
+ * 7.4 Terminating Yin-Yang puzzle -> test_pervasive_yinyang (Passes)
+ * 8.1 Named let shadowing -> test_pervasive_named_let_shadow (Passes)
+ * 8.2 append sharing tail -> test_pervasive_append_sharing (Passes)
+ */
+
 struct VM* global_vm_ptr = NULL;
 
 void setUp(void) {
@@ -187,6 +202,31 @@ void test_pervasive_append_sharing(void) {
     TEST_ASSERT_TRUE(is_nil(p));
 }
 
+// 7.1 Captured continuation should be unmodified by invocation of other continuations
+void test_pervasive_cont_mutation(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    global_vm_ptr = &vm;
+
+    const char* code = 
+        "(let () "
+        "  (define r #f) (define a #f) (define b #f) (define c #f) (define i 0) "
+        "  (set! r (+ 1 (+ 2 (+ 3 (call/cc (lambda (k) (set! a k) 4)))) "
+        "             (+ 5 (+ 6 (call/cc (lambda (k) (set! b k) 7)))))) "
+        "  (if (not c) (set! c a)) "
+        "  (set! i (+ i 1)) "
+        "  (cond "
+        "    ((= i 1) (a 5)) "
+        "    ((= i 2) (b 8)) "
+        "    ((= i 3) (a 6)) "
+        "    ((= i 4) (c 4))) "
+        "  r)";
+
+    Value* result = run_scheme(&vm, code);
+    TEST_ASSERT_EQUAL(28, result->as.fixnum);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_pervasive_placeholder);
@@ -199,5 +239,6 @@ int main(void) {
     RUN_TEST(test_pervasive_symbol_case);
     RUN_TEST(test_pervasive_named_let_shadow);
     RUN_TEST(test_pervasive_append_sharing);
+    RUN_TEST(test_pervasive_cont_mutation);
     return UNITY_END();
 }
