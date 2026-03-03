@@ -2,6 +2,7 @@
 #define SCHEME_H
 
 #include <stdbool.h>
+#include <stdint.h>
 
 typedef enum {
     OP_HALT,    // [1]
@@ -36,6 +37,8 @@ typedef enum {
     VAL_STRING,
     VAL_VECTOR,
     VAL_CHAR,
+    VAL_BIGNUM,
+    VAL_REAL,
 } ValueType;
 
 struct VM; // Forward declaration
@@ -48,7 +51,13 @@ typedef struct Value {
         long fixnum;
         bool boolean;
         char character;
+        double real;
         const char* symbol;
+        struct {
+            uint32_t* digits;
+            int len;
+            int sign; // 1 for pos, -1 for neg
+        } bignum;
         struct {
             char* str;
             int len;
@@ -89,12 +98,14 @@ Value* make_boolean(bool b);
 Value* make_char(char c);
 Value* make_string(const char* s);
 Value* make_vector(int len, Value* fill);
+Value* make_bignum(int sign, uint32_t* digits, int len);
+Value* make_real(double d);
 Value* make_nil(void);
 Value* make_symbol(const char* name);
 Value* make_pair(Value* car, Value* cdr);
 Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args);
 Value* make_closure(Value* proto, Value* env);
-Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, struct Value** args));
+Value* make_primitive(Value* (*primitive)(struct VM* vm, int nargs, Value** args));
 Value* make_continuation(struct Value** stack, int sp, struct Value* env, struct Value* proto, unsigned char* pc);
 Value* make_raw(void* p);
 
@@ -109,6 +120,8 @@ bool is_boolean(Value* v);
 bool is_char(Value* v);
 bool is_string(Value* v);
 bool is_vector(Value* v);
+bool is_bignum(Value* v);
+bool is_real(Value* v);
 bool is_nil(Value* v);
 bool is_symbol(Value* v);
 bool is_pair(Value* v);

@@ -86,6 +86,8 @@ static void sweep(void) {
                 free(unreached->as.string.str);
             } else if (unreached->type == VAL_VECTOR) {
                 free(unreached->as.vector.elements);
+            } else if (unreached->type == VAL_BIGNUM) {
+                free(unreached->as.bignum.digits);
             }
             free(unreached);
         } else {

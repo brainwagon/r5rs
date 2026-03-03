@@ -43,6 +43,23 @@ Value* make_vector(int len, Value* fill) {
     return v;
 }
 
+Value* make_bignum(int sign, uint32_t* digits, int len) {
+    Value* v = gc_alloc(VAL_BIGNUM);
+    if (v) {
+        v->as.bignum.sign = sign;
+        v->as.bignum.len = len;
+        v->as.bignum.digits = malloc(sizeof(uint32_t) * len);
+        memcpy(v->as.bignum.digits, digits, sizeof(uint32_t) * len);
+    }
+    return v;
+}
+
+Value* make_real(double d) {
+    Value* v = gc_alloc(VAL_REAL);
+    if (v) v->as.real = d;
+    return v;
+}
+
 Value* make_nil(void) {
     return gc_alloc(VAL_NIL);
 }
@@ -146,6 +163,15 @@ void print_value(Value* v) {
             }
             printf(")");
             break;
+        case VAL_BIGNUM: {
+            if (v->as.bignum.sign == -1) printf("-");
+            // Simple decimal print for bignums is hard if base is not 10^9
+            // For now, let's just print hex or something if base was 2^32.
+            // Actually, I'll implement a proper print_bignum later.
+            printf("#<bignum %d digits>", v->as.bignum.len);
+            break;
+        }
+        case VAL_REAL: printf("%g", v->as.real); break;
         case VAL_NIL: printf("()"); break;
         case VAL_SYMBOL: printf("%s", v->as.symbol); break;
         case VAL_PAIR:
@@ -174,6 +200,8 @@ bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
 bool is_char(Value* v) { return v && v->type == VAL_CHAR; }
 bool is_string(Value* v) { return v && v->type == VAL_STRING; }
 bool is_vector(Value* v) { return v && v->type == VAL_VECTOR; }
+bool is_bignum(Value* v) { return v && v->type == VAL_BIGNUM; }
+bool is_real(Value* v) { return v && v->type == VAL_REAL; }
 bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
 bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
 bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }
