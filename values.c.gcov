@@ -4,24 +4,24 @@
         -:    3:#include <stdlib.h>
         -:    4:#include <string.h>
         -:    5:
-        3:    6:Value* make_fixnum(long n) {
-        3:    7:    Value* v = gc_alloc(VAL_FIXNUM);
-        3:    8:    if (v) {
-        3:    9:        v->as.fixnum = n;
+        4:    6:Value* make_fixnum(long n) {
+        4:    7:    Value* v = gc_alloc(VAL_FIXNUM);
+        4:    8:    if (v) {
+        4:    9:        v->as.fixnum = n;
         -:   10:    }
-        3:   11:    return v;
+        4:   11:    return v;
         -:   12:}
         -:   13:
-        2:   14:Value* make_boolean(bool b) {
-        2:   15:    Value* v = gc_alloc(VAL_BOOLEAN);
-        2:   16:    if (v) {
-        2:   17:        v->as.boolean = b;
+        3:   14:Value* make_boolean(bool b) {
+        3:   15:    Value* v = gc_alloc(VAL_BOOLEAN);
+        3:   16:    if (v) {
+        3:   17:        v->as.boolean = b;
         -:   18:    }
-        2:   19:    return v;
+        3:   19:    return v;
         -:   20:}
         -:   21:
-        1:   22:Value* make_nil(void) {
-        1:   23:    return gc_alloc(VAL_NIL);
+        2:   22:Value* make_nil(void) {
+        2:   23:    return gc_alloc(VAL_NIL);
         -:   24:}
         -:   25:
         -:   26:static Value* symbol_registry = NULL;
@@ -53,17 +53,49 @@
         2:   52:    return v;
         -:   53:}
         -:   54:
-        1:   55:Value* make_pair(Value* car, Value* cdr) {
-        1:   56:    Value* v = gc_alloc(VAL_PAIR);
-        1:   57:    if (v) {
-        1:   58:        v->as.pair.car = car;
-        1:   59:        v->as.pair.cdr = cdr;
+        2:   55:Value* make_pair(Value* car, Value* cdr) {
+        2:   56:    Value* v = gc_alloc(VAL_PAIR);
+        2:   57:    if (v) {
+        2:   58:        v->as.pair.car = car;
+        2:   59:        v->as.pair.cdr = cdr;
         -:   60:    }
-        1:   61:    return v;
+        2:   61:    return v;
         -:   62:}
         -:   63:
-       1*:   64:bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
-       2*:   65:bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
-       1*:   66:bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
-       2*:   67:bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
-       1*:   68:bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }
+        2:   64:Value* make_proto(unsigned char* code, int code_len, Value** constants, int num_constants, int num_args) {
+        2:   65:    Value* v = gc_alloc(VAL_PROTOTYPE);
+        2:   66:    if (v) {
+        2:   67:        v->as.proto.code = code;
+        2:   68:        v->as.proto.code_len = code_len;
+        2:   69:        v->as.proto.constants = constants;
+        2:   70:        v->as.proto.num_constants = num_constants;
+        2:   71:        v->as.proto.num_args = num_args;
+        -:   72:    }
+        2:   73:    return v;
+        -:   74:}
+        -:   75:
+        1:   76:Value* make_closure(Value* proto, Value* env) {
+        1:   77:    Value* v = gc_alloc(VAL_CLOSURE);
+        1:   78:    if (v) {
+        1:   79:        v->as.closure.proto = proto;
+        1:   80:        v->as.closure.env = env;
+        -:   81:    }
+        1:   82:    return v;
+        -:   83:}
+        -:   84:
+        1:   85:Value* make_primitive(Value* (*primitive)(int nargs, Value** args)) {
+        1:   86:    Value* v = gc_alloc(VAL_PRIMITIVE);
+        1:   87:    if (v) {
+        1:   88:        v->as.primitive = primitive;
+        -:   89:    }
+        1:   90:    return v;
+        -:   91:}
+        -:   92:
+       1*:   93:bool is_fixnum(Value* v) { return v && v->type == VAL_FIXNUM; }
+       2*:   94:bool is_boolean(Value* v) { return v && v->type == VAL_BOOLEAN; }
+       1*:   95:bool is_nil(Value* v) { return v && v->type == VAL_NIL; }
+       2*:   96:bool is_symbol(Value* v) { return v && v->type == VAL_SYMBOL; }
+       1*:   97:bool is_pair(Value* v) { return v && v->type == VAL_PAIR; }
+       1*:   98:bool is_closure(Value* v) { return v && v->type == VAL_CLOSURE; }
+       1*:   99:bool is_proto(Value* v) { return v && v->type == VAL_PROTOTYPE; }
+       1*:  100:bool is_primitive(Value* v) { return v && v->type == VAL_PRIMITIVE; }

@@ -15,7 +15,7 @@ void test_compile_const(void) {
     const char* input = "42";
     const char* p = input;
     Value* expr = read_sexpr_str(&p);
-    Value* proto = compile(expr, make_nil(), 0);
+    Value* proto = compile(expr, make_nil(), -1);
     
     TEST_ASSERT_NOT_NULL(proto);
     TEST_ASSERT_TRUE(is_proto(proto));
@@ -30,7 +30,7 @@ void test_compile_if(void) {
     const char* input = "(if #t 1 2)";
     const char* p = input;
     Value* expr = read_sexpr_str(&p);
-    Value* proto = compile(expr, make_nil(), 0);
+    Value* proto = compile(expr, make_nil(), -1);
     
     TEST_ASSERT_NOT_NULL(proto);
     // Code should look like:
@@ -49,7 +49,7 @@ void test_compile_call(void) {
     const char* input = "(foo 1 2)";
     const char* p = input;
     Value* expr = read_sexpr_str(&p);
-    Value* proto = compile(expr, make_nil(), 0);
+    Value* proto = compile(expr, make_nil(), -1);
     
     TEST_ASSERT_NOT_NULL(proto);
     // CONST 1
@@ -67,7 +67,7 @@ void test_compile_define(void) {
     const char* input = "(define x 42)";
     const char* p = input;
     Value* expr = read_sexpr_str(&p);
-    Value* proto = compile(expr, make_nil(), 0);
+    Value* proto = compile(expr, make_nil(), -1);
     
     TEST_ASSERT_NOT_NULL(proto);
     // CONST 42
@@ -82,7 +82,7 @@ void test_compile_lambda(void) {
     const char* input = "(lambda (x) x)";
     const char* p = input;
     Value* expr = read_sexpr_str(&p);
-    Value* proto = compile(expr, make_nil(), 0);
+    Value* proto = compile(expr, make_nil(), -1);
     
     TEST_ASSERT_NOT_NULL(proto);
     // CLOSURE <proto>

@@ -1,0 +1,195 @@
+        -:    0:Source:src/compiler.c
+        -:    0:Graph:obj/compiler.gcno
+        -:    0:Data:obj/compiler.gcda
+        -:    0:Runs:7
+        -:    1:#include <compiler.h>
+        -:    2:#include <stdlib.h>
+        -:    3:#include <string.h>
+        -:    4:
+        -:    5:typedef struct {
+        -:    6:    unsigned char* code;
+        -:    7:    int cap;
+        -:    8:    int len;
+        -:    9:    Value** constants;
+        -:   10:    int c_cap;
+        -:   11:    int c_len;
+        -:   12:} ProtoBuilder;
+        -:   13:
+        6:   14:static void pb_init(ProtoBuilder* pb) {
+        6:   15:    pb->cap = 64;
+        6:   16:    pb->code = malloc(pb->cap);
+        6:   17:    pb->len = 0;
+        6:   18:    pb->c_cap = 16;
+        6:   19:    pb->constants = malloc(sizeof(Value*) * pb->c_cap);
+        6:   20:    pb->c_len = 0;
+        6:   21:}
+        -:   22:
+       48:   23:static void pb_emit(ProtoBuilder* pb, unsigned char b) {
+       48:   24:    if (pb->len == pb->cap) {
+    #####:   25:        pb->cap *= 2;
+    #####:   26:        pb->code = realloc(pb->code, pb->cap);
+        -:   27:    }
+       48:   28:    pb->code[pb->len++] = b;
+       48:   29:}
+        -:   30:
+       13:   31:static void pb_emit2(ProtoBuilder* pb, int v) {
+       13:   32:    pb_emit(pb, (v >> 8) & 0xFF);
+       13:   33:    pb_emit(pb, v & 0xFF);
+       13:   34:}
+        -:   35:
+       10:   36:static int pb_add_constant(ProtoBuilder* pb, Value* v) {
+       17:   37:    for (int i = 0; i < pb->c_len; i++) {
+       7*:   38:        if (pb->constants[i] == v) return i; // Simple pointer equality for now
+        -:   39:    }
+       10:   40:    if (pb->c_len == pb->c_cap) {
+    #####:   41:        pb->c_cap *= 2;
+    #####:   42:        pb->constants = realloc(pb->constants, sizeof(Value*) * pb->c_cap);
+        -:   43:    }
+       10:   44:    pb->constants[pb->c_len++] = v;
+       10:   45:    return pb->c_len - 1;
+        -:   46:}
+        -:   47:
+        2:   48:static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
+        2:   49:    int d = 0;
+        2:   50:    while (is_pair(env)) {
+        1:   51:        Value* frame = env->as.pair.car;
+        1:   52:        int i = 0;
+        1:   53:        while (is_pair(frame)) {
+        1:   54:            if (frame->as.pair.car == sym) {
+        1:   55:                *depth = d;
+        1:   56:                *index = i;
+        1:   57:                return true;
+        -:   58:            }
+    #####:   59:            frame = frame->as.pair.cdr;
+    #####:   60:            i++;
+        -:   61:        }
+    #####:   62:        env = env->as.pair.cdr;
+    #####:   63:        d++;
+        -:   64:    }
+        1:   65:    return false;
+        -:   66:}
+        -:   67:
+        -:   68:static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env);
+        -:   69:
+       13:   70:static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
+       13:   71:    if (is_fixnum(expr) || is_boolean(expr) || is_nil(expr)) {
+        7:   72:        int idx = pb_add_constant(pb, expr);
+        7:   73:        pb_emit(pb, OP_CONST);
+        7:   74:        pb_emit2(pb, idx);
+        7:   75:        return;
+        -:   76:    }
+        -:   77:    
+        6:   78:    if (is_symbol(expr)) {
+        -:   79:        int d, i;
+        2:   80:        if (lookup_lexical(env, expr, &d, &i)) {
+        1:   81:            pb_emit(pb, OP_LREF);
+        1:   82:            pb_emit(pb, (unsigned char)d);
+        1:   83:            pb_emit2(pb, i);
+        -:   84:        } else {
+        1:   85:            int idx = pb_add_constant(pb, expr);
+        1:   86:            pb_emit(pb, OP_GREF);
+        1:   87:            pb_emit2(pb, idx);
+        -:   88:        }
+        2:   89:        return;
+        -:   90:    }
+        -:   91:
+        4:   92:    if (is_pair(expr)) {
+        4:   93:        Value* car = expr->as.pair.car;
+        4:   94:        if (is_symbol(car)) {
+        4:   95:            const char* name = car->as.symbol;
+        4:   96:            if (strcmp(name, "quote") == 0) {
+    #####:   97:                Value* datum = expr->as.pair.cdr->as.pair.car;
+    #####:   98:                int idx = pb_add_constant(pb, datum);
+    #####:   99:                pb_emit(pb, OP_CONST);
+    #####:  100:                pb_emit2(pb, idx);
+    #####:  101:                return;
+        -:  102:            }
+        4:  103:            if (strcmp(name, "if") == 0) {
+        1:  104:                Value* test = expr->as.pair.cdr->as.pair.car;
+        1:  105:                Value* then_part = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+        1:  106:                Value* else_part = expr->as.pair.cdr->as.pair.cdr->as.pair.cdr->as.pair.car;
+        -:  107:
+        1:  108:                compile_expr(pb, test, env);
+        1:  109:                pb_emit(pb, OP_JF);
+        1:  110:                int jf_pos = pb->len;
+        1:  111:                pb_emit2(pb, 0); // Placeholder
+        -:  112:                
+        1:  113:                compile_expr(pb, then_part, env);
+        1:  114:                pb_emit(pb, OP_JUMP);
+        1:  115:                int jump_pos = pb->len;
+        1:  116:                pb_emit2(pb, 0); // Placeholder
+        -:  117:                
+        1:  118:                int else_start = pb->len;
+        1:  119:                pb->code[jf_pos] = (else_start - jf_pos - 2) >> 8;
+        1:  120:                pb->code[jf_pos + 1] = (else_start - jf_pos - 2) & 0xFF;
+        -:  121:                
+        1:  122:                compile_expr(pb, else_part, env);
+        1:  123:                int end_pos = pb->len;
+        1:  124:                pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+        1:  125:                pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+        1:  126:                return;
+        -:  127:            }
+        3:  128:            if (strcmp(name, "define") == 0) {
+        1:  129:                Value* sym = expr->as.pair.cdr->as.pair.car;
+        1:  130:                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+        1:  131:                compile_expr(pb, body, env);
+        1:  132:                int idx = pb_add_constant(pb, sym);
+        1:  133:                pb_emit(pb, OP_DEF);
+        1:  134:                pb_emit2(pb, idx);
+        1:  135:                return;
+        -:  136:            }
+        2:  137:            if (strcmp(name, "lambda") == 0) {
+        1:  138:                Value* params = expr->as.pair.cdr->as.pair.car;
+        1:  139:                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
+        -:  140:                
+        1:  141:                int num_args = 0;
+        1:  142:                Value* p = params;
+        2:  143:                while (is_pair(p)) {
+        1:  144:                    num_args++;
+        1:  145:                    p = p->as.pair.cdr;
+        -:  146:                }
+        -:  147:                
+        1:  148:                Value* new_env = make_pair(params, env);
+        1:  149:                Value* proto = compile(body, new_env, num_args);
+        -:  150:                
+        1:  151:                int idx = pb_add_constant(pb, proto);
+        1:  152:                pb_emit(pb, OP_CLOSURE);
+        1:  153:                pb_emit2(pb, idx);
+        1:  154:                return;
+        -:  155:            }
+        -:  156:        }
+        -:  157:        
+        -:  158:        // Procedure call
+        -:  159:        // (f x1 x2 ...)
+        -:  160:        // Push arguments, then push f
+        1:  161:        Value* args = expr->as.pair.cdr;
+        1:  162:        int nargs = 0;
+        3:  163:        while (is_pair(args)) {
+        2:  164:            compile_expr(pb, args->as.pair.car, env);
+        2:  165:            args = args->as.pair.cdr;
+        2:  166:            nargs++;
+        -:  167:        }
+        1:  168:        compile_expr(pb, car, env);
+        1:  169:        pb_emit(pb, OP_CALL);
+        1:  170:        pb_emit(pb, (unsigned char)nargs);
+        1:  171:        return;
+        -:  172:    }
+        -:  173:}
+        -:  174:
+        6:  175:Value* compile(Value* expr, Value* env, int num_args) {
+        -:  176:    ProtoBuilder pb;
+        6:  177:    pb_init(&pb);
+        6:  178:    compile_expr(&pb, expr, env);
+        6:  179:    pb_emit(&pb, OP_HALT);
+        -:  180:    
+        -:  181:    // Copy code and constants to the prototype
+        6:  182:    unsigned char* code = malloc(pb.len);
+        6:  183:    memcpy(code, pb.code, pb.len);
+        6:  184:    Value** constants = malloc(sizeof(Value*) * pb.c_len);
+        6:  185:    memcpy(constants, pb.constants, sizeof(Value*) * pb.c_len);
+        -:  186:    
+        6:  187:    Value* proto = make_proto(code, pb.len, constants, pb.c_len, num_args);
+        6:  188:    free(pb.code);
+        6:  189:    free(pb.constants);
+        6:  190:    return proto;
+        -:  191:}

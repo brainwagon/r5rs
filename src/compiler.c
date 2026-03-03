@@ -35,7 +35,7 @@ static void pb_emit2(ProtoBuilder* pb, int v) {
 
 static int pb_add_constant(ProtoBuilder* pb, Value* v) {
     for (int i = 0; i < pb->c_len; i++) {
-        if (pb->constants[i] == v) return i; // Simple pointer equality for now
+        if (pb->constants[i] == v) return i;
     }
     if (pb->c_len == pb->c_cap) {
         pb->c_cap *= 2;
@@ -65,13 +65,14 @@ static bool lookup_lexical(Value* env, Value* sym, int* depth, int* index) {
     return false;
 }
 
-static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env);
+static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail);
 
-static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
+static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, bool tail) {
     if (is_fixnum(expr) || is_boolean(expr) || is_nil(expr)) {
         int idx = pb_add_constant(pb, expr);
         pb_emit(pb, OP_CONST);
         pb_emit2(pb, idx);
+        if (tail) pb_emit(pb, OP_RET);
         return;
     }
     
@@ -86,6 +87,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
             pb_emit(pb, OP_GREF);
             pb_emit2(pb, idx);
         }
+        if (tail) pb_emit(pb, OP_RET);
         return;
     }
 
@@ -98,6 +100,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
                 int idx = pb_add_constant(pb, datum);
                 pb_emit(pb, OP_CONST);
                 pb_emit2(pb, idx);
+                if (tail) pb_emit(pb, OP_RET);
                 return;
             }
             if (strcmp(name, "if") == 0) {
@@ -105,33 +108,39 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
                 Value* then_part = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
                 Value* else_part = expr->as.pair.cdr->as.pair.cdr->as.pair.cdr->as.pair.car;
 
-                compile_expr(pb, test, env);
+                compile_expr(pb, test, env, false);
                 pb_emit(pb, OP_JF);
                 int jf_pos = pb->len;
-                pb_emit2(pb, 0); // Placeholder
+                pb_emit2(pb, 0); 
                 
-                compile_expr(pb, then_part, env);
-                pb_emit(pb, OP_JUMP);
-                int jump_pos = pb->len;
-                pb_emit2(pb, 0); // Placeholder
+                compile_expr(pb, then_part, env, tail);
+                int jump_pos = -1;
+                if (!tail) {
+                    pb_emit(pb, OP_JUMP);
+                    jump_pos = pb->len;
+                    pb_emit2(pb, 0);
+                }
                 
                 int else_start = pb->len;
                 pb->code[jf_pos] = (else_start - jf_pos - 2) >> 8;
                 pb->code[jf_pos + 1] = (else_start - jf_pos - 2) & 0xFF;
                 
-                compile_expr(pb, else_part, env);
-                int end_pos = pb->len;
-                pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
-                pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+                compile_expr(pb, else_part, env, tail);
+                if (!tail) {
+                    int end_pos = pb->len;
+                    pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
+                    pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
+                }
                 return;
             }
             if (strcmp(name, "define") == 0) {
                 Value* sym = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
-                compile_expr(pb, body, env);
+                compile_expr(pb, body, env, false);
                 int idx = pb_add_constant(pb, sym);
                 pb_emit(pb, OP_DEF);
                 pb_emit2(pb, idx);
+                if (tail) pb_emit(pb, OP_RET);
                 return;
             }
             if (strcmp(name, "lambda") == 0) {
@@ -147,26 +156,26 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
                 
                 Value* new_env = make_pair(params, env);
                 Value* proto = compile(body, new_env, num_args);
+                // Note: compile() internally calls compile_expr(..., true) for lambda body
                 
                 int idx = pb_add_constant(pb, proto);
                 pb_emit(pb, OP_CLOSURE);
                 pb_emit2(pb, idx);
+                if (tail) pb_emit(pb, OP_RET);
                 return;
             }
         }
         
         // Procedure call
-        // (f x1 x2 ...)
-        // Push arguments, then push f
         Value* args = expr->as.pair.cdr;
         int nargs = 0;
         while (is_pair(args)) {
-            compile_expr(pb, args->as.pair.car, env);
+            compile_expr(pb, args->as.pair.car, env, false);
             args = args->as.pair.cdr;
             nargs++;
         }
-        compile_expr(pb, car, env);
-        pb_emit(pb, OP_CALL);
+        compile_expr(pb, car, env, false);
+        pb_emit(pb, tail ? OP_TCALL : OP_CALL);
         pb_emit(pb, (unsigned char)nargs);
         return;
     }
@@ -175,16 +184,19 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env) {
 Value* compile(Value* expr, Value* env, int num_args) {
     ProtoBuilder pb;
     pb_init(&pb);
-    compile_expr(&pb, expr, env);
-    pb_emit(&pb, OP_HALT);
+    // lambda body or top-level?
+    // If num_args >= 0, it's a lambda body, so it should end in RET
+    // If num_args < 0, it's top-level, so it should end in HALT
+    bool is_lambda = (num_args >= 0);
+    compile_expr(&pb, expr, env, is_lambda);
+    if (!is_lambda) pb_emit(&pb, OP_HALT);
     
-    // Copy code and constants to the prototype
     unsigned char* code = malloc(pb.len);
     memcpy(code, pb.code, pb.len);
     Value** constants = malloc(sizeof(Value*) * pb.c_len);
     memcpy(constants, pb.constants, sizeof(Value*) * pb.c_len);
     
-    Value* proto = make_proto(code, pb.len, constants, pb.c_len, num_args);
+    Value* proto = make_proto(code, pb.len, constants, pb.c_len, (is_lambda ? num_args : 0));
     free(pb.code);
     free(pb.constants);
     return proto;
