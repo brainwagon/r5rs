@@ -16,6 +16,12 @@ void terminal_init(TerminalState* state) {
 void terminal_history_add(TerminalState* state, const char* line) {
     if (line[0] == '\0') return;
     
+    // Deduplication: don't add if identical to previous entry
+    if (state->history.count > 0 && strcmp(state->history.entries[state->history.count - 1], line) == 0) {
+        state->history.current_idx = state->history.count;
+        return;
+    }
+    
     if (state->history.count == HISTORY_MAX) {
         // Remove oldest
         free(state->history.entries[0]);

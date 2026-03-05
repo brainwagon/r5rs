@@ -106,6 +106,27 @@ void test_history_persistence(void) {
     remove(test_file);
 }
 
+void test_history_deduplication(void) {
+    TerminalState state;
+    terminal_init(&state);
+    
+    terminal_history_add(&state, "cmd1");
+    terminal_history_add(&state, "cmd1");
+    terminal_history_add(&state, "cmd1");
+    
+    TEST_ASSERT_EQUAL(1, state.history.count);
+    
+    terminal_history_add(&state, "cmd2");
+    terminal_history_add(&state, "cmd1");
+    
+    TEST_ASSERT_EQUAL(3, state.history.count);
+    TEST_ASSERT_EQUAL_STRING("cmd1", state.history.entries[0]);
+    TEST_ASSERT_EQUAL_STRING("cmd2", state.history.entries[1]);
+    TEST_ASSERT_EQUAL_STRING("cmd1", state.history.entries[2]);
+    
+    terminal_history_free(&state);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_history_init);
@@ -113,5 +134,6 @@ int main(void) {
     RUN_TEST(test_history_navigation);
     RUN_TEST(test_history_limit);
     RUN_TEST(test_history_persistence);
+    RUN_TEST(test_history_deduplication);
     return UNITY_END();
 }
