@@ -22,7 +22,7 @@
 *Goal: Add a history system that persists across sessions.*
 
 - [x] Task: Implement an in-memory history structure (doubly-linked list or circular buffer). 0524c4d
-- [ ] Task: Add functions to save and load history from `~/.r5rs_history`.
+- [x] Task: Add functions to save and load history from `~/.r5rs_history`. 6ba1767
 - [ ] Task: Implement history navigation using `Up`/`Down` arrows and `Ctrl-P`/`Ctrl-N`.
 - [ ] Task: Implement deduplication for consecutive identical history entries.
 - [ ] Task: Conductor - User Manual Verification 'Persistent Command History' (Protocol in workflow.md)
