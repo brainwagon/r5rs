@@ -15,7 +15,7 @@
 - [x] Task: Implement cursor navigation (Left/Right arrow keys, `Ctrl-B`/`Ctrl-F`). d775960
 - [x] Task: Add support for jumping to beginning/end of line (`Ctrl-A`/`Ctrl-E`). 46676b7
 - [x] Task: Implement "Kill and Yank" functionality (`Ctrl-K` to kill end of line, `Ctrl-Y` to yank). 7cecfa0
-- [ ] Task: Implement `Ctrl-L` to clear the screen and redraw the current line.
+- [x] Task: Implement `Ctrl-L` to clear the screen and redraw the current line. 19bca7f
 - [ ] Task: Conductor - User Manual Verification 'Advanced Line Editing and Keybindings' (Protocol in workflow.md)
 
 ## Phase 3: Persistent Command History
