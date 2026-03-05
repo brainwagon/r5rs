@@ -25,7 +25,7 @@
 - [x] Task: Add functions to save and load history from `~/.r5rs_history`. 6ba1767
 - [x] Task: Implement history navigation using `Up`/`Down` arrows and `Ctrl-P`/`Ctrl-N`. cd0d2fd
 - [x] Task: Implement deduplication for consecutive identical history entries. 86cc292
-- [ ] Task: Conductor - User Manual Verification 'Persistent Command History' (Protocol in workflow.md)
+- [~] Task: Conductor - User Manual Verification 'Persistent Command History' (Protocol in workflow.md)
 
 ## Phase 4: Parenthesis Matching and Multi-line Prompt
 *Goal: Enhance the user experience with visual feedback and multi-line support.*

@@ -28,6 +28,8 @@ int main(void) {
         }
         if (strcmp(buf, "q") == 0) break;
         
+        terminal_history_add(&state, buf);
+        
         terminal_write_str("\r\nYou entered: [");
         terminal_write_str(buf);
         terminal_write_str("]\r\n");
