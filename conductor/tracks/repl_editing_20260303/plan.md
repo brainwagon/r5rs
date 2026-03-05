@@ -9,14 +9,14 @@
 - [x] Task: Implement basic character deletion (Backspace/Ctrl-H) in the raw input loop. 269f9c9
 - [x] Task: Conductor - User Manual Verification 'Terminal Raw Mode and Basic Input' (Protocol in workflow.md)
 
-## Phase 2: Advanced Line Editing and Keybindings
+## Phase 2: Advanced Line Editing and Keybindings [checkpoint: b4fd4f0]
 *Goal: Implement standard line editing capabilities and cursor navigation.*
 
 - [x] Task: Implement cursor navigation (Left/Right arrow keys, `Ctrl-B`/`Ctrl-F`). d775960
 - [x] Task: Add support for jumping to beginning/end of line (`Ctrl-A`/`Ctrl-E`). 46676b7
 - [x] Task: Implement "Kill and Yank" functionality (`Ctrl-K` to kill end of line, `Ctrl-Y` to yank). 7cecfa0
 - [x] Task: Implement `Ctrl-L` to clear the screen and redraw the current line. 19bca7f
-- [~] Task: Conductor - User Manual Verification 'Advanced Line Editing and Keybindings' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Advanced Line Editing and Keybindings' (Protocol in workflow.md) b4fd4f0
 
 ## Phase 3: Persistent Command History
 *Goal: Add a history system that persists across sessions.*
