@@ -572,11 +572,24 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             }
             if (strcmp(name, "define") == 0) {
                 Value* sym = expr->as.pair.cdr->as.pair.car;
-                Value* body = expr->as.pair.cdr->as.pair.cdr->as.pair.car;
-                compile_expr(pb, body, env, syntax_env, false);
-                int idx = pb_add_constant(pb, sym);
-                pb_emit(pb, OP_DEF);
-                pb_emit2(pb, idx);
+                Value* body = expr->as.pair.cdr->as.pair.cdr;
+                
+                if (is_pair(sym)) {
+                    // (define (foo x) body) => (define foo (lambda (x) body))
+                    Value* name_val = sym->as.pair.car;
+                    Value* params = sym->as.pair.cdr;
+                    Value* lambda = make_pair(make_symbol("lambda"), make_pair(params, body));
+                    
+                    compile_expr(pb, lambda, env, syntax_env, false);
+                    int idx = pb_add_constant(pb, name_val);
+                    pb_emit(pb, OP_DEF);
+                    pb_emit2(pb, idx);
+                } else {
+                    compile_expr(pb, body->as.pair.car, env, syntax_env, false);
+                    int idx = pb_add_constant(pb, sym);
+                    pb_emit(pb, OP_DEF);
+                    pb_emit2(pb, idx);
+                }
                 if (tail) pb_emit(pb, OP_RET);
                 return;
             }

@@ -1,4 +1,5 @@
 #include <scheme.h>
+#include <vm.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -18,6 +19,30 @@ void gc_init(void) {
     stack_sp_ptr = NULL;
 }
 
+void gc_shutdown(void) {
+    Value* v = all_objects;
+    while (v) {
+        Value* next = v->next;
+        if (v->type == VAL_SYMBOL) {
+            free((void*)v->as.symbol);
+        } else if (v->type == VAL_PROTOTYPE) {
+            free(v->as.proto.code);
+            free(v->as.proto.constants);
+        } else if (v->type == VAL_CONTINUATION) {
+            free(v->as.cont.stack);
+        } else if (v->type == VAL_STRING) {
+            free(v->as.string.str);
+        } else if (v->type == VAL_VECTOR) {
+            free(v->as.vector.elements);
+        } else if (v->type == VAL_BIGNUM) {
+            free(v->as.bignum.digits);
+        }
+        free(v);
+        v = next;
+    }
+    all_objects = NULL;
+}
+
 void gc_add_root(Value** root) {
     if (roots_count < MAX_ROOTS) {
         roots[roots_count++] = root;
@@ -32,8 +57,7 @@ void gc_set_stack_root(Value*** stack, int* sp) {
 Value* gc_alloc(ValueType type) {
     Value* v = malloc(sizeof(Value));
     if (!v) {
-        perror("malloc failed");
-        exit(1);
+        vm_error(global_vm_ptr, "Out of memory");
     }
     v->type = type;
     v->marked = false;

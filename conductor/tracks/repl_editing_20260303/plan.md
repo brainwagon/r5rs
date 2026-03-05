@@ -39,7 +39,7 @@
 ## Phase 5: REPL Integration and Cleanup
 *Goal: Replace the existing simple REPL with the new custom editor.*
 
-- [ ] Task: Refactor `src/main.c` to use the new `custom_readline` interface instead of `fgets`.
-- [ ] Task: Ensure multi-line expressions are stored as a single entry in history.
-- [ ] Task: Final code review, documentation of public functions, and memory leak check with Valgrind.
-- [ ] Task: Conductor - User Manual Verification 'REPL Integration and Cleanup' (Protocol in workflow.md)
+- [x] Task: Refactor `src/main.c` to use the new `custom_readline` interface instead of `fgets`. d18706d
+- [x] Task: Ensure multi-line expressions are stored as a single entry in history.
+- [x] Task: Final code review, documentation of public functions, and memory leak check with Valgrind.
+- [x] Task: Conductor - User Manual Verification 'REPL Integration and Cleanup' (Protocol in workflow.md)

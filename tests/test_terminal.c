@@ -95,6 +95,7 @@ static int run_readline_test(const char* input, char* out_buf, int max_len) {
     
     TerminalState state;
     terminal_init(&state);
+    state.raw_mode_enabled = 1;
     int res = terminal_readline(&state, "test> ", out_buf, max_len);
     
     dup2(old_stdin, STDIN_FILENO);
@@ -193,6 +194,7 @@ void test_terminal_readline_ctrl_l(void) {
 void test_terminal_readline_history_nav(void) {
     TerminalState state;
     terminal_init(&state);
+    state.raw_mode_enabled = 1;
     terminal_history_add(&state, "first");
     terminal_history_add(&state, "second");
     
@@ -229,6 +231,7 @@ void test_terminal_readline_history_nav(void) {
 void test_terminal_readline_history_nav_arrows(void) {
     TerminalState state;
     terminal_init(&state);
+    state.raw_mode_enabled = 1;
     terminal_history_add(&state, "first");
     terminal_history_add(&state, "second");
     
@@ -302,6 +305,7 @@ void test_terminal_is_balanced(void) {
 void test_terminal_read_sexpr_multi_line(void) {
     TerminalState state;
     terminal_init(&state);
+    state.raw_mode_enabled = 1;
     
     int in_fds[2], out_fds[2];
     pipe(in_fds);

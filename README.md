@@ -19,6 +19,13 @@ A fast, small, and feature-complete R5RS Scheme implementation in C, featuring a
 - **Reals**: Floating-point numeric support.
 - **Standard Types**: Pairs, Lists, Symbols, Strings, Vectors, Booleans, and Characters.
 
+### REPL & Command Line Editing
+- **Advanced Editing**: Full support for cursor navigation (arrows, `Ctrl-B`/`Ctrl-F`), home/end (`Ctrl-A`/`Ctrl-E`), and kill/yank (`Ctrl-K`/`Ctrl-Y`).
+- **Persistent History**: Searchable command history that persists across sessions in `~/.r5rs_history`.
+- **Parenthesis Matching**: Visual "cursor jump" feedback when typing closing parentheses.
+- **Multi-line Input**: Automatic detection of unbalanced expressions with continuation prompts.
+- **Error Recovery**: Robust error handling that returns to the REPL instead of aborting, ensuring terminal state integrity.
+
 ### Memory Management
 - **Garbage Collection**: Mark-and-sweep GC with root management and stack safety.
 - **Interned Symbols**: Efficient symbol comparison and storage.

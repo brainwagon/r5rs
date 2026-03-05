@@ -14,6 +14,17 @@ void terminal_init(TerminalState* state) {
     state->history.current_idx = 0;
 }
 
+static void terminal_history_add_raw(TerminalState* state, const char* line) {
+    if (state->history.count == HISTORY_MAX) {
+        free(state->history.entries[0]);
+        memmove(&state->history.entries[0], &state->history.entries[1], sizeof(char*) * (HISTORY_MAX - 1));
+        state->history.count--;
+    }
+    state->history.entries[state->history.count] = strdup(line);
+    state->history.count++;
+    state->history.current_idx = state->history.count;
+}
+
 void terminal_history_add(TerminalState* state, const char* line) {
     if (line[0] == '\0') return;
     
@@ -23,16 +34,7 @@ void terminal_history_add(TerminalState* state, const char* line) {
         return;
     }
     
-    if (state->history.count == HISTORY_MAX) {
-        // Remove oldest
-        free(state->history.entries[0]);
-        memmove(&state->history.entries[0], &state->history.entries[1], sizeof(char*) * (HISTORY_MAX - 1));
-        state->history.count--;
-    }
-    
-    state->history.entries[state->history.count] = strdup(line);
-    state->history.count++;
-    state->history.current_idx = state->history.count;
+    terminal_history_add_raw(state, line);
 }
 
 const char* terminal_history_prev(TerminalState* state) {
@@ -67,7 +69,17 @@ int terminal_history_save(TerminalState* state, const char* filename) {
     if (!f) return -1;
     
     for (int i = 0; i < state->history.count; i++) {
-        fprintf(f, "%s\n", state->history.entries[i]);
+        const char* s = state->history.entries[i];
+        for (int j = 0; s[j]; j++) {
+            if (s[j] == '\n') {
+                fprintf(f, "\\n");
+            } else if (s[j] == '\\') {
+                fprintf(f, "\\\\");
+            } else {
+                fputc(s[j], f);
+            }
+        }
+        fputc('\n', f);
     }
     
     fclose(f);
@@ -80,13 +92,29 @@ int terminal_history_load(TerminalState* state, const char* filename) {
     
     terminal_history_free(state);
     
-    char line[1024];
+    char line[4096];
     while (fgets(line, sizeof(line), f)) {
         size_t len = strlen(line);
         if (len > 0 && line[len - 1] == '\n') {
             line[len - 1] = '\0';
         }
-        terminal_history_add(state, line);
+        
+        // Unescape
+        char unescaped[4096];
+        int k = 0;
+        for (int j = 0; line[j]; j++) {
+            if (line[j] == '\\' && line[j+1] == 'n') {
+                unescaped[k++] = '\n';
+                j++;
+            } else if (line[j] == '\\' && line[j+1] == '\\') {
+                unescaped[k++] = '\\';
+                j++;
+            } else {
+                unescaped[k++] = line[j];
+            }
+        }
+        unescaped[k] = '\0';
+        terminal_history_add_raw(state, unescaped);
     }
     
     fclose(f);
@@ -171,6 +199,7 @@ int terminal_write_char(char c) {
 int terminal_write_str(const char* s) {
     size_t len = strlen(s);
     if (write(STDOUT_FILENO, s, len) != (ssize_t)len) return -1;
+    tcdrain(STDOUT_FILENO);
     return 0;
 }
 
@@ -196,6 +225,17 @@ static void terminal_refresh_line(const char* prompt, int pos, const char* buf) 
 }
 
 int terminal_readline(TerminalState* state, const char* prompt, char* buf, int max_len) {
+    if (!state->raw_mode_enabled) {
+        terminal_write_str(prompt);
+        if (fgets(buf, max_len, stdin) == NULL) return 0;
+        size_t len = strlen(buf);
+        if (len > 0 && buf[len - 1] == '\n') {
+            buf[len - 1] = '\0';
+            len--;
+        }
+        return (int)len;
+    }
+
     int len = 0;
     int pos = 0;
     buf[0] = '\0';

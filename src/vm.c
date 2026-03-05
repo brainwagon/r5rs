@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 void vm_init(VM* vm) {
     vm->stack_cap = 1024;
@@ -13,6 +14,29 @@ void vm_init(VM* vm) {
     gc_add_root(&vm->syntax_env);
     gc_set_stack_root(&vm->stack, &vm->sp);
     vm->running = false;
+    vm->jmp_buf_set = false;
+}
+
+void vm_cleanup(VM* vm) {
+    if (vm->stack) {
+        free(vm->stack);
+        vm->stack = NULL;
+    }
+}
+
+void vm_error(VM* vm, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    fprintf(stderr, "Error: ");
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
+
+    if (vm->jmp_buf_set) {
+        longjmp(vm->error_jmp, 1);
+    } else {
+        exit(1);
+    }
 }
 
 static void push(VM* vm, Value* v) {
@@ -25,8 +49,7 @@ static void push(VM* vm, Value* v) {
 
 static Value* pop(VM* vm) {
     if (vm->sp == 0) {
-        fprintf(stderr, "Stack underflow at PC offset %ld\n", (long)(vm->pc - vm->top_proto->as.proto.code));
-        exit(1);
+        vm_error(vm, "Stack underflow at PC offset %ld", (long)(vm->pc - vm->top_proto->as.proto.code));
     }
     return vm->stack[--vm->sp];
 }
@@ -106,8 +129,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 Value* sym = vm->top_proto->as.proto.constants[idx];
                 Value* val = lookup_global(vm, sym);
                 if (!val) {
-                    fprintf(stderr, "Undefined global: %s\n", sym->as.symbol);
-                    exit(1);
+                    vm_error(vm, "Undefined global: %s", sym->as.symbol);
                 }
                 push(vm, val);
                 break;
@@ -160,8 +182,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     vm->top_proto = proc->as.closure.proto;
                     vm->pc = vm->top_proto->as.proto.code;
                 } else {
-                    fprintf(stderr, "call/cc expects procedure\n");
-                    exit(1);
+                    vm_error(vm, "call/cc expects procedure");
                 }
                 break;
             }
@@ -237,7 +258,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     vm->top_proto = proto;
                     vm->pc = vm->top_proto->as.proto.code;
                 } else if (is_continuation(proc)) {
-                    if (nargs != 1) { fprintf(stderr, "Continuation expects 1 argument\n"); exit(1); }
+                    if (nargs != 1) { vm_error(vm, "Continuation expects 1 argument"); }
                     Value* result = pop(vm);
                     if (proc->as.cont.sp > vm->stack_cap) {
                         vm->stack_cap = proc->as.cont.sp;
@@ -250,10 +271,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     vm->pc = proc->as.cont.pc;
                     push(vm, result);
                 } else {
-                    fprintf(stderr, "Cannot call non-procedure: ");
-                    print_value(proc, true);
-                    fprintf(stderr, "\n");
-                    exit(1);
+                    vm_error(vm, "Cannot call non-procedure");
                 }
                 break;
             }
@@ -282,8 +300,7 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 break;
             }
             default:
-                fprintf(stderr, "Unknown opcode: %d\n", op);
-                exit(1);
+                vm_error(vm, "Unknown opcode: %d", op);
         }
     }
     return NULL;

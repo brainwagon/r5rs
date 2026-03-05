@@ -8,6 +8,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+#include <setjmp.h>
 
 #define COLOR_RESET  "\x1b[0m"
 #define COLOR_BOLD   "\x1b[1m"
@@ -38,6 +39,13 @@ static void load_file(VM* vm, const char* filename, bool silent) {
     content[size] = '\0';
     fclose(f);
     
+    if (setjmp(vm->error_jmp) != 0) {
+        vm->jmp_buf_set = false;
+        free(content);
+        return;
+    }
+    vm->jmp_buf_set = true;
+    
     const char* p = content;
     while (p && *p) {
         while (*p && isspace(*p)) p++;
@@ -56,6 +64,7 @@ static void load_file(VM* vm, const char* filename, bool silent) {
         }
         gc_collect();
     }
+    vm->jmp_buf_set = false;
     free(content);
 }
 
@@ -80,11 +89,19 @@ static void repl(VM* vm) {
     
     if (terminal_enable_raw_mode(&term) == -1) {
         printf("Warning: Failed to enable raw mode. Falling back to basic REPL.\n");
-        // Simple fallback could be implemented here if needed
     }
     
     char buf[4096];
     while (1) {
+        if (setjmp(vm->error_jmp) != 0) {
+            // Error occurred, reset state for next command
+            vm->sp = 0;
+            vm->running = false;
+            // Ensure we are not in the middle of a multi-line read
+            // (though setjmp here is outside terminal_read_sexpr)
+        }
+        vm->jmp_buf_set = true;
+
         const char* prompt = COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET;
         const char* cont_prompt = COLOR_BOLD COLOR_GREEN "     > " COLOR_RESET;
         
@@ -109,13 +126,18 @@ static void repl(VM* vm) {
             Value* result = vm_run(vm, proto);
             
             terminal_write_str(COLOR_CYAN);
+            fflush(stdout);
             print_value(result, true);
+            fflush(stdout);
             terminal_write_str(COLOR_RESET "\r\n");
+            fflush(stdout);
+            tcdrain(STDOUT_FILENO);
             
             gc_collect();
         }
     }
     
+    vm->jmp_buf_set = false;
     terminal_disable_raw_mode(&term);
     terminal_history_free(&term);
     if (history_path) free(history_path);
@@ -140,6 +162,9 @@ int main(int argc, char** argv) {
     } else {
         repl(&vm);
     }
+    
+    vm_cleanup(&vm);
+    gc_shutdown();
     
     return 0;
 }

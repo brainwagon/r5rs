@@ -102,12 +102,33 @@ void test_compile_lambda(void) {
     TEST_ASSERT_EQUAL(OP_LREF, subproto->as.proto.code[0]);
 }
 
+void test_compile_define_func(void) {
+    const char* input = "(define (foo x) x)";
+    const char* p = input;
+    Value* expr = read_sexpr_str(&p);
+    Value* proto = compile(expr, make_nil(), make_nil(), -1, false);
+    
+    TEST_ASSERT_NOT_NULL(proto);
+    // CLOSURE <proto>
+    // DEF foo
+    // HALT
+    // 3 + 3 + 1 = 7
+    TEST_ASSERT_EQUAL(7, proto->as.proto.code_len);
+    TEST_ASSERT_EQUAL(OP_CLOSURE, proto->as.proto.code[0]);
+    TEST_ASSERT_EQUAL(OP_DEF, proto->as.proto.code[3]);
+    
+    Value* lambda_proto = proto->as.proto.constants[0];
+    TEST_ASSERT_TRUE(is_proto(lambda_proto));
+    TEST_ASSERT_EQUAL(1, lambda_proto->as.proto.num_args);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_compile_const);
     RUN_TEST(test_compile_if);
     RUN_TEST(test_compile_call);
     RUN_TEST(test_compile_define);
+    RUN_TEST(test_compile_define_func);
     RUN_TEST(test_compile_lambda);
     return UNITY_END();
 }

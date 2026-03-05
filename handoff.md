@@ -1,36 +1,36 @@
-# Handoff: Fix Pervasive Test Failures and R5RS Compliance
+# Handoff: Improved REPL Command Line Editing
 
-## Current Status
-Implementation is in progress for the `pervasive_fixes_20260303` track. The primary focus has been on diagnosing `test_pervasive_cont_mutation` failures and improving core spec compliance.
+## Status: In Progress (Phase 5)
+Track: `repl_editing_20260303`
 
-### Test Results (`make test-pervasive`):
-- **PASS**: `test_pervasive_placeholder`
-- **PASS**: `test_pervasive_identifier_shadowing` (Fixed: core keywords are now bound globally)
-- **PASS**: `test_pervasive_callcc_app`
-- **PASS**: `test_pervasive_yinyang`
-- **PASS**: `test_pervasive_f_null_distinct`
-- **PASS**: `test_pervasive_symbol_case`
-- **PASS**: `test_pervasive_named_let_shadow`
-- **PASS**: `test_pervasive_append_sharing`
-- **FAIL**: `test_pervasive_hygiene_plus` (Expected 4 Was 3; known macro hygiene limitation)
-- **FAIL**: `test_pervasive_cont_mutation` (Blocker: **Stack underflow at OP_RET**)
+### Completed Features:
+- **Phase 1: Terminal Raw Mode**: POSIX termios integration for raw character input.
+- **Phase 2: Advanced Editing**:
+    - Cursor navigation (Left/Right arrows, `Ctrl-B`/`Ctrl-F`).
+    - Home/End support (`Ctrl-A`/`Ctrl-E`).
+    - Kill/Yank functionality (`Ctrl-K`/`Ctrl-Y`) with an internal kill buffer.
+    - Clear screen (`Ctrl-L`).
+- **Phase 3: Persistent History**:
+    - In-memory history structure (100 entries).
+    - File persistence (`~/.r5rs_history`) with newline escaping.
+    - Up/Down arrow navigation (`Ctrl-P`/`Ctrl-N`).
+    - Deduplication of consecutive identical commands.
+- **Phase 4: Parenthesis Matching & Multi-line**:
+    - Backwards-search logic for matching parentheses.
+    - Visual "Cursor Jump" (500ms) to matching `(` when `)` is typed.
+    - Multi-line expression reading with continuation prompt (`     > `).
+- **Phase 5: REPL Integration**:
+    - Integrated `terminal_read_sexpr` into `src/main.c`.
+    - **Fixed**: Cursor offset issues caused by ANSI colors in prompt (using Save/Restore Cursor sequences).
+    - **Fixed**: Output buffering issues (using `fflush` and `tcdrain`).
 
-## Key Changes & Fixes
-1. **VM OP_CALLCC Fix**: Removed a redundant `push(vm, cont)` that was leaking continuations onto the stack and corrupting arguments for subsequent primitive calls.
-2. **Keyword Handling**: 
-   - Updated `src/compiler.c` to handle core keywords used as values (identifiers).
-   - Updated `src/primitives.c` to bind keywords (`if`, `lambda`, etc.) to themselves in the global environment.
-3. **Arithmetic Robustness**: 
-   - Added `bignum_to_double` to `src/bignum.c`.
-   - Integrated `is_number` helper and strict type checks in `src/primitives.c` (later reverted to clean state for Valgrind, but logic verified).
-4. **Infrastructure**: Created `tests/test_pervasive.c` and integrated a subset of `r5rs_pitfall.scm`.
+### Remaining Tasks:
+- [ ] Final code review and documentation of new public functions in `terminal.h`.
+- [ ] Memory leak check with Valgrind (specifically checking history and buffer allocations).
+- [ ] Final verification of the integrated REPL.
 
-## Blockers & Identified Issues
-- **OP_RET Stack Underflow**: In `test_pervasive_cont_mutation`, the VM encounters a stack underflow at the end of the `let` body. `sp` is 3 (likely just the return info), but `OP_RET` expects 4 (result + return info). This suggests an extra `OP_POP` or a missing result push in the `cond` or `let` expansion.
-- **Macro Hygiene**: Our `syntax-rules` implementation lacks syntactic closures, causing local bindings to interfere with macro-introduced identifiers.
-
-## Recommended Next Steps
-1. **Trace `test_pervasive_cont_mutation` Bytecode**: Inspect the exact sequence of `OP_POP` and pushes around the `cond` expression.
-2. **Debug `OP_RET`**: Use GDB to verify the stack state at the moment of underflow.
-3. **Fix Internal `define`**: Address the `TODO` in `src/compiler.c` regarding internal definitions being treated as globals.
-4. **Implement Syntactic Closures**: If required for compliance, rearchitect macro renaming to track scope.
+### Instructions for Next Session:
+1. Run `./scheme` to verify the integrated experience.
+2. Run `make test` to ensure no regressions in VM or Compiler.
+3. Use Valgrind to check for leaks: `valgrind --leak-check=full ./scheme` (type a few commands and exit).
+4. Update `plan.md` and `tracks.md` upon completion.

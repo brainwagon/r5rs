@@ -216,7 +216,7 @@ static Value* prim_newline(VM* vm, int nargs, Value** args) {
 
 static Value* prim_eq_p(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 2) { fprintf(stderr, "eq? expects 2 args\n"); exit(1); }
+    if (nargs != 2) { vm_error(vm, "eq? expects 2 args"); }
     return make_boolean(args[0] == args[1]);
 }
 
@@ -257,7 +257,7 @@ static Value* prim_eqv_p(VM* vm, int nargs, Value** args) {
 
 static Value* prim_equal_p(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 2) { fprintf(stderr, "equal? expects 2 args\n"); exit(1); }
+    if (nargs != 2) { vm_error(vm, "equal? expects 2 args"); }
     Value* a = args[0];
     Value* b = args[1];
     if (a == b) return make_boolean(true);
@@ -286,19 +286,19 @@ static Value* prim_equal_p(VM* vm, int nargs, Value** args) {
 
 static Value* prim_string_to_symbol(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 1 || !is_string(args[0])) { fprintf(stderr, "string->symbol expects 1 string\n"); exit(1); }
+    if (nargs != 1 || !is_string(args[0])) { vm_error(vm, "string->symbol expects 1 string"); }
     return make_symbol(args[0]->as.string.str);
 }
 
 static Value* prim_symbol_to_string(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 1 || !is_symbol(args[0])) { fprintf(stderr, "symbol->string expects 1 symbol\n"); exit(1); }
+    if (nargs != 1 || !is_symbol(args[0])) { vm_error(vm, "symbol->string expects 1 symbol"); }
     return make_string(args[0]->as.symbol);
 }
 
 static Value* prim_not(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs != 1) { fprintf(stderr, "not expects 1 arg\n"); exit(1); }
+    if (nargs != 1) { vm_error(vm, "not expects 1 arg"); }
     return make_boolean(is_boolean(args[0]) && !args[0]->as.boolean);
 }
 

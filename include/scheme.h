@@ -118,6 +118,7 @@ Value* make_continuation(struct Value** stack, int sp, struct Value* env, struct
 Value* make_raw(void* p);
 
 void gc_init(void);
+void gc_shutdown(void);
 Value* gc_alloc(ValueType type);
 void gc_collect(void);
 void gc_add_root(Value** root);
