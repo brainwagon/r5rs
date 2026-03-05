@@ -1,4 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
 #include <terminal.h>
 #include <string.h>
 #include <unistd.h>
@@ -114,16 +115,10 @@ int terminal_enable_raw_mode(TerminalState* state) {
     if (tcgetattr(STDIN_FILENO, &state->orig_termios) == -1) return -1;
     
     struct termios raw = state->orig_termios;
-    // Input flags: disable break, CR-to-NL, parity check, strip 8th bit, flow control
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-    // Output flags: disable post-processing
     raw.c_oflag &= ~(OPOST);
-    // Control flags: set character size to 8 bits per byte
     raw.c_cflag |= (CS8);
-    // Local flags: disable echoing, canonical mode, extended functions, signals
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    
-    // Set to blocking read: wait for at least one character
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
     
@@ -167,25 +162,23 @@ int terminal_write_str(const char* s) {
     return 0;
 }
 
-static void terminal_refresh_line(int pos, const char* buf) {
-    // Go to beginning of line
+static void terminal_refresh_line(const char* prompt, int pos, const char* buf) {
     terminal_write_str("\r");
-    // Clear to end of line (using VT100 escape sequence K)
     terminal_write_str("\x1b[K");
-    // Redraw prompt (Assuming "scheme> ")
-    // Actually, we should probably pass the prompt or use a more generic way
-    // For now, let's just draw the buffer content
-    terminal_write_str("test> "); // Using "test> " to match manual test for now
+    terminal_write_str(prompt);
     terminal_write_str(buf);
     
-    // Position cursor: go to beginning of line, then forward by (pos + prompt_len)
     terminal_write_str("\r");
-    char move_cursor[32];
-    sprintf(move_cursor, "\x1b[%dC", pos + 6); // 6 is length of "test> "
-    terminal_write_str(move_cursor);
+    int prompt_len = strlen(prompt);
+    if (pos + prompt_len > 0) {
+        char move_cursor[32];
+        sprintf(move_cursor, "\x1b[%dC", pos + prompt_len);
+        terminal_write_str(move_cursor);
+    }
+    tcdrain(STDOUT_FILENO);
 }
 
-int terminal_readline(TerminalState* state, char* buf, int max_len) {
+int terminal_readline(TerminalState* state, const char* prompt, char* buf, int max_len) {
     int len = 0;
     int pos = 0;
     buf[0] = '\0';
@@ -212,13 +205,13 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                     } else if (seq[1] == 'B') { // Down arrow
                         c = 14; // Map to Ctrl-N
                     } else {
-                        continue; // Other escape sequence, skip for now
+                        continue;
                     }
                 } else {
-                    continue; // Other escape sequence, skip for now
+                    continue;
                 }
             } else {
-                continue; // Incomplete escape sequence
+                continue;
             }
         }
         
@@ -229,7 +222,7 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                 buf[max_len - 1] = '\0';
                 len = strlen(buf);
                 pos = len;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -241,12 +234,12 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                 buf[max_len - 1] = '\0';
                 len = strlen(buf);
                 pos = len;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             } else if (state->history.current_idx == state->history.count) {
                 buf[0] = '\0';
                 len = 0;
                 pos = 0;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -256,7 +249,7 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                 memmove(&buf[pos - 1], &buf[pos], len - pos + 1);
                 len--;
                 pos--;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -264,7 +257,7 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
         if (c == 2) { // Ctrl-B (Left)
             if (pos > 0) {
                 pos--;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -272,20 +265,20 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
         if (c == 6) { // Ctrl-F (Right)
             if (pos < len) {
                 pos++;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
         
         if (c == 1) { // Ctrl-A (Home)
             pos = 0;
-            terminal_refresh_line(pos, buf);
+            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
         if (c == 5) { // Ctrl-E (End)
             pos = len;
-            terminal_refresh_line(pos, buf);
+            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
@@ -295,7 +288,7 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                 state->kill_buffer[sizeof(state->kill_buffer) - 1] = '\0';
                 buf[pos] = '\0';
                 len = pos;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -307,14 +300,14 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                 memcpy(&buf[pos], state->kill_buffer, yank_len);
                 len += yank_len;
                 pos += yank_len;
-                terminal_refresh_line(pos, buf);
+                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
         
         if (c == 12) { // Ctrl-L (Clear screen)
             terminal_write_str("\x1b[2J\x1b[H");
-            terminal_refresh_line(pos, buf);
+            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
@@ -326,7 +319,16 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             len++;
             pos++;
             buf[len] = '\0';
-            terminal_refresh_line(pos, buf);
+            terminal_refresh_line(prompt, pos, buf);
+            
+            if (c == ')') {
+                int match = terminal_find_matching_paren(buf, pos - 1);
+                if (match >= 0) {
+                    terminal_refresh_line(prompt, match, buf);
+                    usleep(500000); // 500ms for clearer visibility
+                    terminal_refresh_line(prompt, pos, buf);
+                }
+            }
         }
     }
     buf[len] = '\0';

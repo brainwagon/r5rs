@@ -95,7 +95,7 @@ static int run_readline_test(const char* input, char* out_buf, int max_len) {
     
     TerminalState state;
     terminal_init(&state);
-    int res = terminal_readline(&state, out_buf, max_len);
+    int res = terminal_readline(&state, "test> ", out_buf, max_len);
     
     dup2(old_stdin, STDIN_FILENO);
     dup2(old_stdout, STDOUT_FILENO);
@@ -211,7 +211,7 @@ void test_terminal_readline_history_nav(void) {
     close(in_fds[1]);
     
     char buf[128];
-    int res = terminal_readline(&state, buf, sizeof(buf));
+    int res = terminal_readline(&state, "test> ", buf, sizeof(buf));
     
     TEST_ASSERT_EQUAL(6, res);
     TEST_ASSERT_EQUAL_STRING("second", buf);
@@ -246,7 +246,7 @@ void test_terminal_readline_history_nav_arrows(void) {
     close(in_fds[1]);
     
     char buf[128];
-    int res = terminal_readline(&state, buf, sizeof(buf));
+    int res = terminal_readline(&state, "test> ", buf, sizeof(buf));
     
     TEST_ASSERT_EQUAL(6, res);
     TEST_ASSERT_EQUAL_STRING("second", buf);

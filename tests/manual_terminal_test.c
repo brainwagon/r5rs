@@ -20,8 +20,7 @@ int main(void) {
     
     char buf[128];
     while (1) {
-        terminal_write_str("test> ");
-        int res = terminal_readline(&state, buf, sizeof(buf));
+        int res = terminal_readline(&state, "test> ", buf, sizeof(buf));
         if (res <= 0 && buf[0] == '\0') {
             terminal_write_str("\r\nEOF detected.\r\n");
             break;
