@@ -2,10 +2,12 @@
 #include <reader.h>
 #include <compiler.h>
 #include <vm.h>
+#include <terminal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 #define COLOR_RESET  "\x1b[0m"
 #define COLOR_BOLD   "\x1b[1m"
@@ -57,57 +59,67 @@ static void load_file(VM* vm, const char* filename, bool silent) {
     free(content);
 }
 
+static char* get_history_path(void) {
+    char* home = getenv("HOME");
+    if (!home) return NULL;
+    char* path = malloc(strlen(home) + 16);
+    sprintf(path, "%s/.r5rs_history", home);
+    return path;
+}
+
 static void repl(VM* vm) {
-    char line[4096];
-    char* buffer = NULL;
-    size_t buffer_size = 0;
+    TerminalState term;
+    terminal_init(&term);
+    
+    char* history_path = get_history_path();
+    if (history_path) {
+        terminal_history_load(&term, history_path);
+    }
+    
     welcome();
+    
+    if (terminal_enable_raw_mode(&term) == -1) {
+        printf("Warning: Failed to enable raw mode. Falling back to basic REPL.\n");
+        // Simple fallback could be implemented here if needed
+    }
+    
+    char buf[4096];
     while (1) {
-        if (buffer == NULL || buffer[0] == '\0') {
-            printf(COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET);
-        } else {
-            printf(COLOR_BOLD COLOR_GREEN "     > " COLOR_RESET);
+        const char* prompt = COLOR_BOLD COLOR_GREEN "scheme> " COLOR_RESET;
+        const char* cont_prompt = COLOR_BOLD COLOR_GREEN "     > " COLOR_RESET;
+        
+        int res = terminal_read_sexpr(&term, prompt, cont_prompt, buf, sizeof(buf));
+        if (res <= 0 && buf[0] == '\0') break; // EOF or Error
+        
+        // Add to history
+        terminal_history_add(&term, buf);
+        if (history_path) {
+            terminal_history_save(&term, history_path);
         }
         
-        if (!fgets(line, sizeof(line), stdin)) break;
-        
-        size_t line_len = strlen(line);
-        buffer = realloc(buffer, buffer_size + line_len + 1);
-        strcpy(buffer + buffer_size, line);
-        buffer_size += line_len;
-        
-        const char* p = buffer;
+        const char* p = buf;
         while (p && *p) {
             while (*p && isspace(*p)) p++;
             if (!*p) break;
             
-            const char* start_p = p;
             Value* expr = read_sexpr_str(&p);
-            if (!expr) {
-                // If we couldn't parse but p advanced, it's a partial expression or comment
-                // If it's a partial expression (like "(define x"), we need more input
-                // Reset p to start_p so we keep the partial content in buffer
-                p = start_p;
-                break;
-            }
+            if (!expr) break;
             
             Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
             Value* result = vm_run(vm, proto);
             
-            printf(COLOR_CYAN);
+            terminal_write_str(COLOR_CYAN);
             print_value(result, true);
-            printf(COLOR_RESET "\n");
+            terminal_write_str(COLOR_RESET "\r\n");
             
             gc_collect();
-            
-            // Move the remaining unparsed content to the front of the buffer
-            size_t remaining = strlen(p);
-            memmove(buffer, p, remaining + 1);
-            buffer_size = remaining;
-            p = buffer;
         }
     }
-    free(buffer);
+    
+    terminal_disable_raw_mode(&term);
+    terminal_history_free(&term);
+    if (history_path) free(history_path);
+    
     printf("\nGoodbye!\n");
 }
 

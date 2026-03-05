@@ -175,18 +175,23 @@ int terminal_write_str(const char* s) {
 }
 
 static void terminal_refresh_line(const char* prompt, int pos, const char* buf) {
+    // 1. Move to beginning of line
     terminal_write_str("\r");
-    terminal_write_str("\x1b[K");
+    // 2. Clear entire line
+    terminal_write_str("\x1b[2K");
+    // 3. Write prompt
     terminal_write_str(prompt);
-    terminal_write_str(buf);
-    
-    terminal_write_str("\r");
-    int prompt_len = strlen(prompt);
-    if (pos + prompt_len > 0) {
-        char move_cursor[32];
-        sprintf(move_cursor, "\x1b[%dC", pos + prompt_len);
-        terminal_write_str(move_cursor);
+    // 4. Write buffer up to 'pos'
+    for (int i = 0; i < pos; i++) {
+        terminal_write_char(buf[i]);
     }
+    // 5. Save cursor position
+    terminal_write_str("\x1b[s");
+    // 6. Write rest of buffer
+    terminal_write_str(&buf[pos]);
+    // 7. Restore cursor position
+    terminal_write_str("\x1b[u");
+    
     tcdrain(STDOUT_FILENO);
 }
 
