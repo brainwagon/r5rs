@@ -299,6 +299,44 @@ void test_terminal_is_balanced(void) {
     TEST_ASSERT_EQUAL(1, terminal_is_balanced("())"));
 }
 
+void test_terminal_read_sexpr_multi_line(void) {
+    TerminalState state;
+    terminal_init(&state);
+    
+    int in_fds[2], out_fds[2];
+    pipe(in_fds);
+    pipe(out_fds);
+    
+    int old_stdin = dup(STDIN_FILENO);
+    int old_stdout = dup(STDOUT_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    dup2(out_fds[1], STDOUT_FILENO);
+    
+    // First line: "(define x" (\n)
+    // Second line: "  10)" (\n)
+    const char* input = "(define x\n  10)\n";
+    write(in_fds[1], input, strlen(input));
+    close(in_fds[1]);
+    
+    char buf[256];
+    int res = terminal_read_sexpr(&state, "scheme> ", "     > ", buf, sizeof(buf));
+    
+    // "(define x" (9) + "\n" (1) + "  10)" (5) = 15?
+    // Wait: "(define x" is 9. "  10)" is 5.
+    // Total 14 + 1 = 15.
+    TEST_ASSERT_EQUAL(15, res);
+    TEST_ASSERT_EQUAL_STRING("(define x\n  10)", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    dup2(old_stdout, STDOUT_FILENO);
+    close(old_stdin);
+    close(old_stdout);
+    close(in_fds[0]);
+    close(out_fds[0]);
+    close(out_fds[1]);
+    terminal_history_free(&state);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -320,5 +358,6 @@ int main(void) {
     RUN_TEST(test_terminal_readline_history_nav_arrows);
     RUN_TEST(test_terminal_find_matching_paren);
     RUN_TEST(test_terminal_is_balanced);
+    RUN_TEST(test_terminal_read_sexpr_multi_line);
     return UNITY_END();
 }

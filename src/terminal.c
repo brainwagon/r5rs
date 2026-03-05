@@ -346,3 +346,36 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
     buf[len] = '\0';
     return len;
 }
+
+int terminal_read_sexpr(TerminalState* state, const char* prompt, const char* cont_prompt, char* buf, int max_len) {
+    int total_len = 0;
+    buf[0] = '\0';
+    
+    const char* current_prompt = prompt;
+    
+    while (1) {
+        char line[1024];
+        int res = terminal_readline(state, current_prompt, line, sizeof(line));
+        
+        if (res < 0) return res;
+        if (res == 0 && total_len == 0) return 0;
+        
+        if (total_len + res + 2 > max_len) return -1; // Overflow
+        
+        if (total_len > 0) {
+            strcat(buf, "\n");
+            total_len++;
+        }
+        
+        strcat(buf, line);
+        total_len += res;
+        
+        if (terminal_is_balanced(buf)) {
+            break;
+        }
+        
+        current_prompt = cont_prompt;
+    }
+    
+    return total_len;
+}

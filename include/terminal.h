@@ -34,5 +34,6 @@ int terminal_write_char(char c);
 int terminal_write_str(const char* s);
 int terminal_readline_basic(TerminalState* state, char* buf, int max_len);
 int terminal_readline(TerminalState* state, const char* prompt, char* buf, int max_len);
+int terminal_read_sexpr(TerminalState* state, const char* prompt, const char* cont_prompt, char* buf, int max_len);
 
 #endif /* TERMINAL_H */
