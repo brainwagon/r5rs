@@ -32,7 +32,7 @@
 
 - [x] Task: Implement parenthesis matching logic to find the corresponding `(` for a `)`. cb032c7
 - [x] Task: Implement visual "Cursor Jump" feedback when a closing parenthesis is typed. fbf0a95
-- [ ] Task: Integrate multi-line detection logic into the custom editor.
+- [x] Task: Integrate multi-line detection logic into the custom editor. 6cc6705
 - [ ] Task: Implement the continuation prompt (`     > `) for unbalanced expressions.
 - [ ] Task: Conductor - User Manual Verification 'Parenthesis Matching and Multi-line Prompt' (Protocol in workflow.md)
 
