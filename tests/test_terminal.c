@@ -182,6 +182,14 @@ void test_terminal_readline_kill_yank(void) {
     TEST_ASSERT_EQUAL_STRING("defabc-", buf);
 }
 
+void test_terminal_readline_ctrl_l(void) {
+    char buf[128];
+    // Write "abc", then Ctrl-L (\x0c), then "\n"
+    int res = run_readline_test("abc\x0c\n", buf, sizeof(buf));
+    TEST_ASSERT_EQUAL(3, res);
+    TEST_ASSERT_EQUAL_STRING("abc", buf);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -198,5 +206,6 @@ int main(void) {
     RUN_TEST(test_terminal_readline_ctrl_a);
     RUN_TEST(test_terminal_readline_ctrl_e);
     RUN_TEST(test_terminal_readline_kill_yank);
+    RUN_TEST(test_terminal_readline_ctrl_l);
     return UNITY_END();
 }

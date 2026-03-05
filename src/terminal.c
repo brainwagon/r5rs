@@ -182,6 +182,12 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             continue;
         }
         
+        if (c == 12) { // Ctrl-L (Clear screen)
+            terminal_write_str("\x1b[2J\x1b[H");
+            terminal_refresh_line(pos, buf);
+            continue;
+        }
+        
         if (len < max_len - 1 && c >= 32 && c <= 126) {
             if (pos < len) {
                 memmove(&buf[pos + 1], &buf[pos], len - pos);
