@@ -190,6 +190,77 @@ void test_terminal_readline_ctrl_l(void) {
     TEST_ASSERT_EQUAL_STRING("abc", buf);
 }
 
+void test_terminal_readline_history_nav(void) {
+    TerminalState state;
+    terminal_init(&state);
+    terminal_history_add(&state, "first");
+    terminal_history_add(&state, "second");
+    
+    // Test with Ctrl-P (\x10) and Ctrl-N (\x0e)
+    int in_fds[2], out_fds[2];
+    pipe(in_fds);
+    pipe(out_fds);
+    
+    int old_stdin = dup(STDIN_FILENO);
+    int old_stdout = dup(STDOUT_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    dup2(out_fds[1], STDOUT_FILENO);
+    
+    // Ctrl-P (second), Ctrl-P (first), Ctrl-N (second), \n
+    write(in_fds[1], "\x10\x10\x0e\n", 4);
+    close(in_fds[1]);
+    
+    char buf[128];
+    int res = terminal_readline(&state, buf, sizeof(buf));
+    
+    TEST_ASSERT_EQUAL(6, res);
+    TEST_ASSERT_EQUAL_STRING("second", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    dup2(old_stdout, STDOUT_FILENO);
+    close(old_stdin);
+    close(old_stdout);
+    close(in_fds[0]);
+    close(out_fds[0]);
+    close(out_fds[1]);
+    terminal_history_free(&state);
+}
+
+void test_terminal_readline_history_nav_arrows(void) {
+    TerminalState state;
+    terminal_init(&state);
+    terminal_history_add(&state, "first");
+    terminal_history_add(&state, "second");
+    
+    int in_fds[2], out_fds[2];
+    pipe(in_fds);
+    pipe(out_fds);
+    
+    int old_stdin = dup(STDIN_FILENO);
+    int old_stdout = dup(STDOUT_FILENO);
+    dup2(in_fds[0], STDIN_FILENO);
+    dup2(out_fds[1], STDOUT_FILENO);
+    
+    // Up (\x1b[A), Up (\x1b[A), Down (\x1b[B), \n
+    write(in_fds[1], "\x1b[A\x1b[A\x1b[B\n", 10);
+    close(in_fds[1]);
+    
+    char buf[128];
+    int res = terminal_readline(&state, buf, sizeof(buf));
+    
+    TEST_ASSERT_EQUAL(6, res);
+    TEST_ASSERT_EQUAL_STRING("second", buf);
+    
+    dup2(old_stdin, STDIN_FILENO);
+    dup2(old_stdout, STDOUT_FILENO);
+    close(old_stdin);
+    close(old_stdout);
+    close(in_fds[0]);
+    close(out_fds[0]);
+    close(out_fds[1]);
+    terminal_history_free(&state);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -207,5 +278,7 @@ int main(void) {
     RUN_TEST(test_terminal_readline_ctrl_e);
     RUN_TEST(test_terminal_readline_kill_yank);
     RUN_TEST(test_terminal_readline_ctrl_l);
+    RUN_TEST(test_terminal_readline_history_nav);
+    RUN_TEST(test_terminal_readline_history_nav_arrows);
     return UNITY_END();
 }

@@ -186,6 +186,10 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
                         c = 2; // Map to Ctrl-B
                     } else if (seq[1] == 'C') { // Right arrow
                         c = 6; // Map to Ctrl-F
+                    } else if (seq[1] == 'A') { // Up arrow
+                        c = 16; // Map to Ctrl-P
+                    } else if (seq[1] == 'B') { // Down arrow
+                        c = 14; // Map to Ctrl-N
                     } else {
                         continue; // Other escape sequence, skip for now
                     }
@@ -195,6 +199,35 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             } else {
                 continue; // Incomplete escape sequence
             }
+        }
+        
+        if (c == 16) { // Ctrl-P (Previous history)
+            const char* h = terminal_history_prev(state);
+            if (h) {
+                strncpy(buf, h, max_len - 1);
+                buf[max_len - 1] = '\0';
+                len = strlen(buf);
+                pos = len;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
+        }
+        
+        if (c == 14) { // Ctrl-N (Next history)
+            const char* h = terminal_history_next(state);
+            if (h) {
+                strncpy(buf, h, max_len - 1);
+                buf[max_len - 1] = '\0';
+                len = strlen(buf);
+                pos = len;
+                terminal_refresh_line(pos, buf);
+            } else if (state->history.current_idx == state->history.count) {
+                buf[0] = '\0';
+                len = 0;
+                pos = 0;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
         }
         
         if (c == 127 || c == 8) { // Backspace
