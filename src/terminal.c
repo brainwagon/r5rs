@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <terminal.h>
 #include <string.h>
 #include <unistd.h>
@@ -8,6 +9,50 @@
 void terminal_init(TerminalState* state) {
     memset(state, 0, sizeof(TerminalState));
     state->raw_mode_enabled = 0;
+    state->history.count = 0;
+    state->history.current_idx = 0;
+}
+
+void terminal_history_add(TerminalState* state, const char* line) {
+    if (line[0] == '\0') return;
+    
+    if (state->history.count == HISTORY_MAX) {
+        // Remove oldest
+        free(state->history.entries[0]);
+        memmove(&state->history.entries[0], &state->history.entries[1], sizeof(char*) * (HISTORY_MAX - 1));
+        state->history.count--;
+    }
+    
+    state->history.entries[state->history.count] = strdup(line);
+    state->history.count++;
+    state->history.current_idx = state->history.count;
+}
+
+const char* terminal_history_prev(TerminalState* state) {
+    if (state->history.current_idx > 0) {
+        state->history.current_idx--;
+        return state->history.entries[state->history.current_idx];
+    }
+    return NULL;
+}
+
+const char* terminal_history_next(TerminalState* state) {
+    if (state->history.current_idx < state->history.count) {
+        state->history.current_idx++;
+        if (state->history.current_idx == state->history.count) {
+            return NULL;
+        }
+        return state->history.entries[state->history.current_idx];
+    }
+    return NULL;
+}
+
+void terminal_history_free(TerminalState* state) {
+    for (int i = 0; i < state->history.count; i++) {
+        free(state->history.entries[i]);
+    }
+    state->history.count = 0;
+    state->history.current_idx = 0;
 }
 
 int terminal_enable_raw_mode(TerminalState* state) {
