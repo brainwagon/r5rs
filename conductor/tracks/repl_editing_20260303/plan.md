@@ -23,7 +23,7 @@
 
 - [x] Task: Implement an in-memory history structure (doubly-linked list or circular buffer). 0524c4d
 - [x] Task: Add functions to save and load history from `~/.r5rs_history`. 6ba1767
-- [ ] Task: Implement history navigation using `Up`/`Down` arrows and `Ctrl-P`/`Ctrl-N`.
+- [x] Task: Implement history navigation using `Up`/`Down` arrows and `Ctrl-P`/`Ctrl-N`. cd0d2fd
 - [ ] Task: Implement deduplication for consecutive identical history entries.
 - [ ] Task: Conductor - User Manual Verification 'Persistent Command History' (Protocol in workflow.md)
 
