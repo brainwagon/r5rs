@@ -30,7 +30,7 @@
 ## Phase 4: Parenthesis Matching and Multi-line Prompt
 *Goal: Enhance the user experience with visual feedback and multi-line support.*
 
-- [ ] Task: Implement parenthesis matching logic to find the corresponding `(` for a `)`.
+- [x] Task: Implement parenthesis matching logic to find the corresponding `(` for a `)`. cb032c7
 - [ ] Task: Implement visual "Cursor Jump" feedback when a closing parenthesis is typed.
 - [ ] Task: Integrate multi-line detection logic into the custom editor.
 - [ ] Task: Implement the continuation prompt (`     > `) for unbalanced expressions.
