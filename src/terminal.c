@@ -147,6 +147,18 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             continue;
         }
         
+        if (c == 1) { // Ctrl-A (Home)
+            pos = 0;
+            terminal_refresh_line(pos, buf);
+            continue;
+        }
+        
+        if (c == 5) { // Ctrl-E (End)
+            pos = len;
+            terminal_refresh_line(pos, buf);
+            continue;
+        }
+        
         if (len < max_len - 1 && c >= 32 && c <= 126) {
             if (pos < len) {
                 memmove(&buf[pos + 1], &buf[pos], len - pos);

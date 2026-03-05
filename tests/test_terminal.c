@@ -157,6 +157,22 @@ void test_terminal_readline_arrow_right(void) {
     TEST_ASSERT_EQUAL_STRING("abXc", buf);
 }
 
+void test_terminal_readline_ctrl_a(void) {
+    char buf[128];
+    // Write "abc", then Ctrl-A (\x01), then "X\n" -> "Xabc"
+    int res = run_readline_test("abc\x01X\n", buf, sizeof(buf));
+    TEST_ASSERT_EQUAL(4, res);
+    TEST_ASSERT_EQUAL_STRING("Xabc", buf);
+}
+
+void test_terminal_readline_ctrl_e(void) {
+    char buf[128];
+    // Write "abc", then Ctrl-A, then Ctrl-E (\x05), then "X\n" -> "abcX"
+    int res = run_readline_test("abc\x01\x05X\n", buf, sizeof(buf));
+    TEST_ASSERT_EQUAL(4, res);
+    TEST_ASSERT_EQUAL_STRING("abcX", buf);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -170,5 +186,7 @@ int main(void) {
     RUN_TEST(test_terminal_readline_cursor_nav_right);
     RUN_TEST(test_terminal_readline_arrow_left);
     RUN_TEST(test_terminal_readline_arrow_right);
+    RUN_TEST(test_terminal_readline_ctrl_a);
+    RUN_TEST(test_terminal_readline_ctrl_e);
     return UNITY_END();
 }
