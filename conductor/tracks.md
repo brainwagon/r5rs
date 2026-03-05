@@ -24,5 +24,10 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: add improved command line editing when using the REPL loop, including paren matching.**
+- [~] **Track: add improved command line editing when using the REPL loop, including paren matching.**
 *Link: [./tracks/repl_editing_20260303/](./tracks/repl_editing_20260303/)*
+
+---
+
+- [ ] **Track: Web Interpreter (Emscripten)**
+*Link: [./tracks/web_interpreter_20260305/](./tracks/web_interpreter_20260305/)*
