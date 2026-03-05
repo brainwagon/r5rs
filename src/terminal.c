@@ -102,6 +102,25 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             break;
         }
         
+        if (c == 27) { // Escape sequence
+            char seq[2];
+            if (read(STDIN_FILENO, &seq[0], 1) == 1 && read(STDIN_FILENO, &seq[1], 1) == 1) {
+                if (seq[0] == '[') {
+                    if (seq[1] == 'D') { // Left arrow
+                        c = 2; // Map to Ctrl-B
+                    } else if (seq[1] == 'C') { // Right arrow
+                        c = 6; // Map to Ctrl-F
+                    } else {
+                        continue; // Other escape sequence, skip for now
+                    }
+                } else {
+                    continue; // Other escape sequence, skip for now
+                }
+            } else {
+                continue; // Incomplete escape sequence
+            }
+        }
+        
         if (c == 127 || c == 8) { // Backspace
             if (pos > 0) {
                 memmove(&buf[pos - 1], &buf[pos], len - pos + 1);
