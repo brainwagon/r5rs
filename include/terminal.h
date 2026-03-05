@@ -6,6 +6,7 @@
 typedef struct {
     struct termios orig_termios;
     int raw_mode_enabled;
+    char kill_buffer[1024];
 } TerminalState;
 
 void terminal_init(TerminalState* state);

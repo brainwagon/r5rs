@@ -173,6 +173,15 @@ void test_terminal_readline_ctrl_e(void) {
     TEST_ASSERT_EQUAL_STRING("abcX", buf);
 }
 
+void test_terminal_readline_kill_yank(void) {
+    char buf[128];
+    // Write "abc-def", then Ctrl-A, Move Right 4 times, then Ctrl-K (\x0b), then Ctrl-A, then Ctrl-Y (\x19), then "\n"
+    // "abc-def" -> Move pos to 4 (after '-') -> Kill "def" (buffer "def") -> Yank "def" at pos 0 -> "defabc-"
+    int res = run_readline_test("abc-def\x01\x06\x06\x06\x06\x0b\x01\x19\n", buf, sizeof(buf));
+    TEST_ASSERT_EQUAL(7, res);
+    TEST_ASSERT_EQUAL_STRING("defabc-", buf);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -188,5 +197,6 @@ int main(void) {
     RUN_TEST(test_terminal_readline_arrow_right);
     RUN_TEST(test_terminal_readline_ctrl_a);
     RUN_TEST(test_terminal_readline_ctrl_e);
+    RUN_TEST(test_terminal_readline_kill_yank);
     return UNITY_END();
 }

@@ -159,6 +159,29 @@ int terminal_readline(TerminalState* state, char* buf, int max_len) {
             continue;
         }
         
+        if (c == 11) { // Ctrl-K (Kill to end of line)
+            if (pos < len) {
+                strncpy(state->kill_buffer, &buf[pos], sizeof(state->kill_buffer) - 1);
+                state->kill_buffer[sizeof(state->kill_buffer) - 1] = '\0';
+                buf[pos] = '\0';
+                len = pos;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
+        }
+        
+        if (c == 25) { // Ctrl-Y (Yank)
+            int yank_len = strlen(state->kill_buffer);
+            if (yank_len > 0 && len + yank_len < max_len - 1) {
+                memmove(&buf[pos + yank_len], &buf[pos], len - pos + 1);
+                memcpy(&buf[pos], state->kill_buffer, yank_len);
+                len += yank_len;
+                pos += yank_len;
+                terminal_refresh_line(pos, buf);
+            }
+            continue;
+        }
+        
         if (len < max_len - 1 && c >= 32 && c <= 126) {
             if (pos < len) {
                 memmove(&buf[pos + 1], &buf[pos], len - pos);
