@@ -13,14 +13,16 @@ int main(void) {
     terminal_init(&state);
     
     printf("Enabling raw mode. Press 'q' to quit, Backspace to delete, Ctrl-D for EOF.\n");
+    fflush(stdout); // CRITICAL: Flush stdio before using raw write()
+    
     if (terminal_enable_raw_mode(&state) == -1) {
         perror("terminal_enable_raw_mode");
         return 1;
     }
     
-    char buf[128];
+    char buf[256];
     while (1) {
-        int res = terminal_readline(&state, "test> ", buf, sizeof(buf));
+        int res = terminal_read_sexpr(&state, "test> ", "     > ", buf, sizeof(buf));
         if (res <= 0 && buf[0] == '\0') {
             terminal_write_str("\r\nEOF detected.\r\n");
             break;
@@ -29,9 +31,9 @@ int main(void) {
         
         terminal_history_add(&state, buf);
         
-        terminal_write_str("\r\nYou entered: [");
+        terminal_write_str("\r\nYou entered:\r\n---\r\n");
         terminal_write_str(buf);
-        terminal_write_str("]\r\n");
+        terminal_write_str("\r\n---\r\n");
     }
     
     terminal_disable_raw_mode(&state);

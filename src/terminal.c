@@ -196,6 +196,8 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
     buf[0] = '\0';
     
     while (1) {
+        terminal_refresh_line(prompt, pos, buf);
+        
         int c = terminal_read_char(state);
         if (c <= 0 || c == 4) break; // EOF, Error, or Ctrl-D
         
@@ -234,7 +236,6 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
                 buf[max_len - 1] = '\0';
                 len = strlen(buf);
                 pos = len;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -246,12 +247,10 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
                 buf[max_len - 1] = '\0';
                 len = strlen(buf);
                 pos = len;
-                terminal_refresh_line(prompt, pos, buf);
             } else if (state->history.current_idx == state->history.count) {
                 buf[0] = '\0';
                 len = 0;
                 pos = 0;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -261,7 +260,6 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
                 memmove(&buf[pos - 1], &buf[pos], len - pos + 1);
                 len--;
                 pos--;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -269,7 +267,6 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
         if (c == 2) { // Ctrl-B (Left)
             if (pos > 0) {
                 pos--;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -277,20 +274,17 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
         if (c == 6) { // Ctrl-F (Right)
             if (pos < len) {
                 pos++;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
         
         if (c == 1) { // Ctrl-A (Home)
             pos = 0;
-            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
         if (c == 5) { // Ctrl-E (End)
             pos = len;
-            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
@@ -300,7 +294,6 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
                 state->kill_buffer[sizeof(state->kill_buffer) - 1] = '\0';
                 buf[pos] = '\0';
                 len = pos;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
@@ -312,14 +305,12 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
                 memcpy(&buf[pos], state->kill_buffer, yank_len);
                 len += yank_len;
                 pos += yank_len;
-                terminal_refresh_line(prompt, pos, buf);
             }
             continue;
         }
         
         if (c == 12) { // Ctrl-L (Clear screen)
             terminal_write_str("\x1b[2J\x1b[H");
-            terminal_refresh_line(prompt, pos, buf);
             continue;
         }
         
@@ -331,14 +322,23 @@ int terminal_readline(TerminalState* state, const char* prompt, char* buf, int m
             len++;
             pos++;
             buf[len] = '\0';
-            terminal_refresh_line(prompt, pos, buf);
             
             if (c == ')') {
                 int match = terminal_find_matching_paren(buf, pos - 1);
                 if (match >= 0) {
-                    terminal_refresh_line(prompt, match, buf);
-                    usleep(500000); // 500ms for clearer visibility
                     terminal_refresh_line(prompt, pos, buf);
+                    int back = pos - 1 - match;
+                    if (back > 0) {
+                        char move_back[32];
+                        sprintf(move_back, "\x1b[%dD", back);
+                        terminal_write_str(move_back);
+                        tcdrain(STDOUT_FILENO);
+                        usleep(500000);
+                        char move_forward[32];
+                        sprintf(move_forward, "\x1b[%dC", back);
+                        terminal_write_str(move_forward);
+                        tcdrain(STDOUT_FILENO);
+                    }
                 }
             }
         }
