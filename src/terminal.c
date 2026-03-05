@@ -108,6 +108,18 @@ int terminal_find_matching_paren(const char* buf, int pos) {
     return -1;
 }
 
+int terminal_is_balanced(const char* buf) {
+    int depth = 0;
+    for (int i = 0; buf[i]; i++) {
+        if (buf[i] == '(') {
+            depth++;
+        } else if (buf[i] == ')') {
+            if (depth > 0) depth--;
+        }
+    }
+    return depth == 0;
+}
+
 int terminal_enable_raw_mode(TerminalState* state) {
     if (state->raw_mode_enabled) return 0;
     if (!isatty(STDIN_FILENO)) return -1;

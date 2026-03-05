@@ -283,6 +283,22 @@ void test_terminal_find_matching_paren(void) {
     TEST_ASSERT_EQUAL(1, terminal_find_matching_paren(" (define (f x) (+ x 1))", 22));
 }
 
+void test_terminal_is_balanced(void) {
+    TEST_ASSERT_EQUAL(1, terminal_is_balanced(""));
+    TEST_ASSERT_EQUAL(1, terminal_is_balanced("abc"));
+    TEST_ASSERT_EQUAL(1, terminal_is_balanced("(abc)"));
+    TEST_ASSERT_EQUAL(1, terminal_is_balanced("(a (b) c)"));
+    
+    TEST_ASSERT_EQUAL(0, terminal_is_balanced("("));
+    TEST_ASSERT_EQUAL(0, terminal_is_balanced("(abc"));
+    TEST_ASSERT_EQUAL(0, terminal_is_balanced("(a (b) c"));
+    
+    // Negative balance (more closing) - should be 1 (balanced as in "not waiting for more")
+    // but typically we'd consider it balanced if >= 0.
+    // For REPL, we only care if depth > 0.
+    TEST_ASSERT_EQUAL(1, terminal_is_balanced("())"));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -303,5 +319,6 @@ int main(void) {
     RUN_TEST(test_terminal_readline_history_nav);
     RUN_TEST(test_terminal_readline_history_nav_arrows);
     RUN_TEST(test_terminal_find_matching_paren);
+    RUN_TEST(test_terminal_is_balanced);
     return UNITY_END();
 }
