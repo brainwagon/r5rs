@@ -55,6 +55,37 @@ void terminal_history_free(TerminalState* state) {
     state->history.current_idx = 0;
 }
 
+int terminal_history_save(TerminalState* state, const char* filename) {
+    FILE* f = fopen(filename, "w");
+    if (!f) return -1;
+    
+    for (int i = 0; i < state->history.count; i++) {
+        fprintf(f, "%s\n", state->history.entries[i]);
+    }
+    
+    fclose(f);
+    return 0;
+}
+
+int terminal_history_load(TerminalState* state, const char* filename) {
+    FILE* f = fopen(filename, "r");
+    if (!f) return -1;
+    
+    terminal_history_free(state);
+    
+    char line[1024];
+    while (fgets(line, sizeof(line), f)) {
+        size_t len = strlen(line);
+        if (len > 0 && line[len - 1] == '\n') {
+            line[len - 1] = '\0';
+        }
+        terminal_history_add(state, line);
+    }
+    
+    fclose(f);
+    return 0;
+}
+
 int terminal_enable_raw_mode(TerminalState* state) {
     if (state->raw_mode_enabled) return 0;
     if (!isatty(STDIN_FILENO)) return -1;

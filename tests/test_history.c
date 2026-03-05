@@ -82,11 +82,36 @@ void test_history_limit(void) {
     terminal_history_free(&state);
 }
 
+void test_history_persistence(void) {
+    TerminalState state;
+    terminal_init(&state);
+    
+    terminal_history_add(&state, "cmd1");
+    terminal_history_add(&state, "cmd2");
+    
+    const char* test_file = "test_history.txt";
+    int res = terminal_history_save(&state, test_file);
+    TEST_ASSERT_EQUAL(0, res);
+    
+    terminal_history_free(&state);
+    TEST_ASSERT_EQUAL(0, state.history.count);
+    
+    res = terminal_history_load(&state, test_file);
+    TEST_ASSERT_EQUAL(0, res);
+    TEST_ASSERT_EQUAL(2, state.history.count);
+    TEST_ASSERT_EQUAL_STRING("cmd1", state.history.entries[0]);
+    TEST_ASSERT_EQUAL_STRING("cmd2", state.history.entries[1]);
+    
+    terminal_history_free(&state);
+    remove(test_file);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_history_init);
     RUN_TEST(test_history_add);
     RUN_TEST(test_history_navigation);
     RUN_TEST(test_history_limit);
+    RUN_TEST(test_history_persistence);
     return UNITY_END();
 }

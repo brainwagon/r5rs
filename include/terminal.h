@@ -23,6 +23,8 @@ void terminal_history_add(TerminalState* state, const char* line);
 const char* terminal_history_prev(TerminalState* state);
 const char* terminal_history_next(TerminalState* state);
 void terminal_history_free(TerminalState* state);
+int terminal_history_save(TerminalState* state, const char* filename);
+int terminal_history_load(TerminalState* state, const char* filename);
 int terminal_enable_raw_mode(TerminalState* state);
 int terminal_disable_raw_mode(TerminalState* state);
 int terminal_read_char(TerminalState* state);
