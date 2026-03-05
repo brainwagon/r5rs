@@ -12,7 +12,7 @@
 ## Phase 2: Advanced Line Editing and Keybindings
 *Goal: Implement standard line editing capabilities and cursor navigation.*
 
-- [ ] Task: Implement cursor navigation (Left/Right arrow keys, `Ctrl-B`/`Ctrl-F`).
+- [x] Task: Implement cursor navigation (Left/Right arrow keys, `Ctrl-B`/`Ctrl-F`). d775960
 - [ ] Task: Add support for jumping to beginning/end of line (`Ctrl-A`/`Ctrl-E`).
 - [ ] Task: Implement "Kill and Yank" functionality (`Ctrl-K` to kill end of line, `Ctrl-Y` to yank).
 - [ ] Task: Implement `Ctrl-L` to clear the screen and redraw the current line.
