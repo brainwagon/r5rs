@@ -27,14 +27,14 @@
 - [x] Task: Implement deduplication for consecutive identical history entries. 86cc292
 - [x] Task: Conductor - User Manual Verification 'Persistent Command History' (Protocol in workflow.md) ab7c04f
 
-## Phase 4: Parenthesis Matching and Multi-line Prompt
+## Phase 4: Parenthesis Matching and Multi-line Prompt [checkpoint: c1145d5]
 *Goal: Enhance the user experience with visual feedback and multi-line support.*
 
 - [x] Task: Implement parenthesis matching logic to find the corresponding `(` for a `)`. cb032c7
 - [x] Task: Implement visual "Cursor Jump" feedback when a closing parenthesis is typed. fbf0a95
 - [x] Task: Integrate multi-line detection logic into the custom editor. 6cc6705
 - [x] Task: Implement the continuation prompt (`     > `) for unbalanced expressions. 1317510
-- [~] Task: Conductor - User Manual Verification 'Parenthesis Matching and Multi-line Prompt' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Parenthesis Matching and Multi-line Prompt' (Protocol in workflow.md) c1145d5
 
 ## Phase 5: REPL Integration and Cleanup
 *Goal: Replace the existing simple REPL with the new custom editor.*
