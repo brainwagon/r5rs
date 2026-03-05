@@ -92,6 +92,21 @@ int terminal_history_load(TerminalState* state, const char* filename) {
     return 0;
 }
 
+int terminal_find_matching_paren(const char* buf, int pos) {
+    if (pos < 0 || buf[pos] != ')') return -1;
+    
+    int depth = 0;
+    for (int i = pos - 1; i >= 0; i--) {
+        if (buf[i] == ')') {
+            depth++;
+        } else if (buf[i] == '(') {
+            if (depth == 0) return i;
+            depth--;
+        }
+    }
+    return -1;
+}
+
 int terminal_enable_raw_mode(TerminalState* state) {
     if (state->raw_mode_enabled) return 0;
     if (!isatty(STDIN_FILENO)) return -1;

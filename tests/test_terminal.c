@@ -261,6 +261,28 @@ void test_terminal_readline_history_nav_arrows(void) {
     terminal_history_free(&state);
 }
 
+void test_terminal_find_matching_paren(void) {
+    // (abc)
+    // 01234
+    TEST_ASSERT_EQUAL(0, terminal_find_matching_paren("(abc)", 4));
+    
+    // (abc(def))
+    // 0123456789
+    TEST_ASSERT_EQUAL(4, terminal_find_matching_paren("(abc(def))", 8));
+    TEST_ASSERT_EQUAL(0, terminal_find_matching_paren("(abc(def))", 9));
+    
+    // No match
+    TEST_ASSERT_EQUAL(-1, terminal_find_matching_paren("abc)", 3));
+    TEST_ASSERT_EQUAL(-1, terminal_find_matching_paren("(abc", 3));
+    
+    // (define (f x) (+ x 1))
+    // 01234567890123456789012
+    //  ^        ^
+    // pos 22 is the last ')'
+    // matches '(' at pos 1
+    TEST_ASSERT_EQUAL(1, terminal_find_matching_paren(" (define (f x) (+ x 1))", 22));
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_terminal_state_structure);
@@ -280,5 +302,6 @@ int main(void) {
     RUN_TEST(test_terminal_readline_ctrl_l);
     RUN_TEST(test_terminal_readline_history_nav);
     RUN_TEST(test_terminal_readline_history_nav_arrows);
+    RUN_TEST(test_terminal_find_matching_paren);
     return UNITY_END();
 }
