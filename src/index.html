@@ -45,8 +45,9 @@
 <body>
     <h1>R5RS Scheme</h1>
     <div class="controls">
-        <button id="run-factorial">Factorial Example</button>
-        <button id="run-mandelbrot">Mandelbrot Example</button>
+        <button onclick="loadExample('factorial.scm')">Factorial Example</button>
+        <button onclick="loadExample('mandelbrot.scm')">Mandelbrot Example</button>
+        <button onclick="loadExample('nqueens.scm')">N-Queens Example</button>
     </div>
     <div id="terminal-container"></div>
 
@@ -70,6 +71,21 @@
 
         function saveHistory() {
             localStorage.setItem('repl_history', JSON.stringify(history.slice(-100)));
+        }
+
+        async function loadExample(name) {
+            try {
+                const response = await fetch('examples/' + name);
+                if (!response.ok) throw new Error('Failed to fetch example: ' + name);
+                const code = await response.text();
+                term.writeln('\x1b[1;33mLoading ' + name + '...\x1b[0m');
+                const result = await client.execute(code);
+                term.writeln(result);
+                term.write('scheme> ');
+            } catch (err) {
+                term.writeln('\x1b[31mError loading example: ' + err + '\x1b[0m');
+                term.write('scheme> ');
+            }
         }
 
         function isBalanced(code) {
