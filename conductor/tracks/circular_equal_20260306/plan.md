@@ -18,8 +18,8 @@
     - [x] Verify that topologies match (e.g., cycles of the same length).
 
 **Phase 3: Verification and Completion**
-- [ ] **Task 1: Performance Verification**
-    - [ ] Run benchmark tests to ensure it meets the <1ms target for 100 elements.
-- [ ] **Task 2: Regression Testing**
-    - [ ] Run all existing tests in `tests/` (especially `test_equal.c` and `test_pervasive.c`).
+- [x] **Task 1: Performance Verification** [3fb76bc]
+    - [x] Run benchmark tests to ensure it meets the <1ms target for 100 elements.
+- [x] **Task 2: Regression Testing** [3fb76bc]
+    - [x] Run all existing tests in `tests/` (especially `test_equal.c` and `test_pervasive.c`).
 - [ ] **Task: Conductor - User Manual Verification 'circular_equal_20260306' (Protocol in workflow.md)**
