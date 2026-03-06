@@ -20,8 +20,8 @@
 
 ## Phase 4: Persistence and Example Loaders
 - [x] Task: Implement LocalStorage persistence for terminal history and virtual files [622b970]
-- [~] Task: Add UI buttons to load and execute Scheme examples (`factorial.scm`, `mandelbrot.scm`)
-- [ ] Task: Implement URL parameter loading (`?load=example.scm`)
+- [x] Task: Add UI buttons to load and execute Scheme examples (`factorial.scm`, `mandelbrot.scm`) [7c6472a]
+- [~] Task: Implement URL parameter loading (`?load=example.scm`)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Persistence and Example Loaders' (Protocol in workflow.md)
 
 ## Phase 5: Polishing and Final Verification
