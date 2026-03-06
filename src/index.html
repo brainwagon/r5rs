@@ -104,9 +104,17 @@
         }
 
         // Signal ready
-        setTimeout(() => {
+        setTimeout(async () => {
             term.writeln('Worker Ready.');
-            term.write('scheme> ');
+            
+            // Handle URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const loadParam = urlParams.get('load');
+            if (loadParam) {
+                await loadExample(loadParam);
+            } else {
+                term.write('scheme> ');
+            }
         }, 500);
 
         term.onData(e => {
