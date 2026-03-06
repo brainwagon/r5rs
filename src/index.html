@@ -64,32 +64,54 @@
 
         const client = new SchemeClient();
         
-        // Signal ready after some delay (for demo, in real it should wait for worker init)
+        let currentLine = '';
+        
+        function isBalanced(code) {
+            let count = 0;
+            let inString = false;
+            for (let i = 0; i < code.length; i++) {
+                if (code[i] === '"' && (i === 0 || code[i-1] !== '\\')) {
+                    inString = !inString;
+                }
+                if (!inString) {
+                    if (code[i] === '(') count++;
+                    if (code[i] === ')') count--;
+                }
+            }
+            return count <= 0;
+        }
+
+        // Signal ready
         setTimeout(() => {
             term.writeln('Worker Ready.');
             term.write('scheme> ');
         }, 500);
 
-        let currentLine = '';
         term.onData(e => {
             switch (e) {
                 case '\r': // Enter
                     term.write('\r\n');
                     const trimmed = currentLine.trim();
                     if (trimmed.length > 0) {
-                        client.execute(trimmed)
-                            .then(result => {
-                                term.writeln(result);
-                                term.write('scheme> ');
-                            })
-                            .catch(err => {
-                                term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
-                                term.write('scheme> ');
-                            });
+                        if (isBalanced(currentLine)) {
+                            client.execute(currentLine)
+                                .then(result => {
+                                    term.writeln(result);
+                                    term.write('scheme> ');
+                                })
+                                .catch(err => {
+                                    term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
+                                    term.write('scheme> ');
+                                });
+                            currentLine = '';
+                        } else {
+                            term.write('     > ');
+                            currentLine += '\n';
+                        }
                     } else {
                         term.write('scheme> ');
+                        currentLine = '';
                     }
-                    currentLine = '';
                     break;
                 case '\u007F': // Backspace (DEL)
                     if (currentLine.length > 0) {
