@@ -63,9 +63,15 @@
         term.writeln('Initializing Web Worker...');
 
         const client = new SchemeClient();
-        
+
         let currentLine = '';
-        
+        let history = JSON.parse(localStorage.getItem('repl_history') || '[]');
+        let historyIndex = history.length;
+
+        function saveHistory() {
+            localStorage.setItem('repl_history', JSON.stringify(history.slice(-100)));
+        }
+
         function isBalanced(code) {
             let count = 0;
             let inString = false;
@@ -94,6 +100,13 @@
                     const trimmed = currentLine.trim();
                     if (trimmed.length > 0) {
                         if (isBalanced(currentLine)) {
+                            // Add to history if not empty and different from last
+                            if (history.length === 0 || history[history.length - 1] !== currentLine) {
+                                history.push(currentLine);
+                                saveHistory();
+                            }
+                            historyIndex = history.length;
+
                             client.execute(currentLine)
                                 .then(result => {
                                     term.writeln(result);
@@ -117,6 +130,28 @@
                     if (currentLine.length > 0) {
                         currentLine = currentLine.slice(0, -1);
                         term.write('\b \b');
+                    }
+                    break;
+                case '\u001b[A': // Up Arrow
+                    if (historyIndex > 0) {
+                        historyIndex--;
+                        // Clear current line
+                        for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
+                        currentLine = history[historyIndex];
+                        term.write(currentLine);
+                    }
+                    break;
+                case '\u001b[B': // Down Arrow
+                    if (historyIndex < history.length) {
+                        historyIndex++;
+                        // Clear current line
+                        for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
+                        if (historyIndex === history.length) {
+                            currentLine = '';
+                        } else {
+                            currentLine = history[historyIndex];
+                        }
+                        term.write(currentLine);
                     }
                     break;
                 default:
