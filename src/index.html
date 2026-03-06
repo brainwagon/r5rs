@@ -64,8 +64,39 @@
 
         const client = new SchemeClient();
         
-        // This will be expanded in later tasks
-        term.write('\r\nscheme> ');
+        let currentLine = '';
+        term.onData(e => {
+            switch (e) {
+                case '\r': // Enter
+                    term.write('\r\n');
+                    if (currentLine.trim().length > 0) {
+                        client.execute(currentLine)
+                            .then(result => {
+                                term.writeln(result);
+                                term.write('scheme> ');
+                            })
+                            .catch(err => {
+                                term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
+                                term.write('scheme> ');
+                            });
+                        currentLine = '';
+                    } else {
+                        term.write('scheme> ');
+                    }
+                    break;
+                case '\u007F': // Backspace (DEL)
+                    if (currentLine.length > 0) {
+                        currentLine = currentLine.slice(0, -1);
+                        term.write('\b \b');
+                    }
+                    break;
+                default:
+                    if (e >= ' ' && e <= '~') {
+                        currentLine += e;
+                        term.write(e);
+                    }
+            }
+        });
     </script>
 </body>
 </html>
