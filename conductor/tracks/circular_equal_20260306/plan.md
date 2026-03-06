@@ -1,8 +1,8 @@
 # Implementation Plan: `circular_equal_20260306`
 
 **Phase 1: Research and Scaffolding**
-- [ ] **Task 1: Identify existing `equal?` implementation**
-    - [ ] Locate `prim_equal_p` in `src/primitives.c`.
+- [x] **Task 1: Identify existing `equal?` implementation** [5f4a855]
+    - [x] Locate `prim_equal_p` in `src/primitives.c`.
 - [ ] **Task 2: Create a reproduction test case for circularity**
     - [ ] Create `tests/test_circular_equal.c` following the existing `test_equal.c` structure.
     - [ ] Add tests for circular lists and circular vectors.
