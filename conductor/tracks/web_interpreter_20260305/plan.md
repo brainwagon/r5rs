@@ -7,8 +7,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Emscripten Setup and Core Compilation' (Protocol in workflow.md) [dbe2069]
 
 ## Phase 2: Web Worker Implementation and Messaging
-- [ ] Task: Implement the Web Worker script (`src/web_worker.js`) to host the interpreter
-- [ ] Task: Define a messaging protocol between the main thread and the Web Worker (input/output)
+- [x] Task: Implement the Web Worker script (`src/web_worker.js`) to host the interpreter [e15d90e]
+- [~] Task: Define a messaging protocol between the main thread and the Web Worker (input/output)
 - [ ] Task: Implement asynchronous command execution and result reporting
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Web Worker Implementation and Messaging' (Protocol in workflow.md)
 
