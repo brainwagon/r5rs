@@ -9,13 +9,13 @@
     - [x] Confirm that running these tests causes a crash or infinite loop.
 
 **Phase 2: Core Logic Implementation**
-- [ ] **Task 1: Design the Tortoise and Hare comparison logic**
-    - [ ] Create a helper function `equal_circular_p(Value* a, Value* b)` that implements the two-pointer approach.
-    - [ ] Ensure it handles both pairs and vectors recursively.
-- [ ] **Task 2: Update `prim_equal_p` in `src/primitives.c`**
-    - [ ] Replace or extend `prim_equal_p` to call the circular-aware comparison.
-- [ ] **Task 3: Implement and test the topology comparison**
-    - [ ] Verify that topologies match (e.g., cycles of the same length).
+- [x] **Task 1: Design the Tortoise and Hare comparison logic** [9f2d652]
+    - [x] Create a helper function `equal_circular_p(Value* a, Value* b)` that implements the two-pointer approach (Note: implemented using visited set instead).
+    - [x] Ensure it handles both pairs and vectors recursively.
+- [x] **Task 2: Update `prim_equal_p` in `src/primitives.c`** [9f2d652]
+    - [x] Replace or extend `prim_equal_p` to call the circular-aware comparison.
+- [x] **Task 3: Implement and test the topology comparison** [9f2d652]
+    - [x] Verify that topologies match (e.g., cycles of the same length).
 
 **Phase 3: Verification and Completion**
 - [ ] **Task 1: Performance Verification**
