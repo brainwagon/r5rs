@@ -13,8 +13,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Web Worker Implementation and Messaging' (Protocol in workflow.md) [ab9aa85]
 
 ## Phase 3: UI Development (xterm.js REPL)
-- [ ] Task: Integrate xterm.js into a basic HTML page (`index.html`)
-- [ ] Task: Connect xterm.js input/output to the Web Worker messaging system
+- [x] Task: Integrate xterm.js into a basic HTML page (`index.html`) [45ce301]
+- [~] Task: Connect xterm.js input/output to the Web Worker messaging system
 - [ ] Task: Implement a functional REPL loop within the terminal
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI Development (xterm.js REPL)' (Protocol in workflow.md)
 
