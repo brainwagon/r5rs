@@ -10,5 +10,7 @@ int bignum_compare(Value* a, Value* b);
 Value* bignum_from_long(long n);
 char* bignum_to_string(Value* v);
 double bignum_to_double(Value* v);
+Value* bignum_div_long(Value* a, long b, long* rem);
+void bignum_div_rem(Value* a, Value* b, Value** q, Value** r);
 
 #endif /* BIGNUM_H */

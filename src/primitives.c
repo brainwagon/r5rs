@@ -489,11 +489,16 @@ static Value* prim_quotient(VM* vm, int nargs, Value** args) {
         if (args[1]->as.fixnum == 0) vm_error(vm, "quotient: division by zero");
         return make_fixnum(args[0]->as.fixnum / args[1]->as.fixnum);
     }
-    // Fallback to double for now
-    double v1 = is_real(args[0]) ? args[0]->as.real : (is_fixnum(args[0]) ? (double)args[0]->as.fixnum : bignum_to_double(args[0]));
-    double v2 = is_real(args[1]) ? args[1]->as.real : (is_fixnum(args[1]) ? (double)args[1]->as.fixnum : bignum_to_double(args[1]));
-    if (v2 == 0.0) vm_error(vm, "quotient: division by zero");
-    return make_fixnum((long)(v1 / v2));
+    Value* ba = is_bignum(args[0]) ? args[0] : bignum_from_long(is_fixnum(args[0]) ? args[0]->as.fixnum : (long)args[0]->as.real);
+    gc_push_root(ba);
+    Value* bb = is_bignum(args[1]) ? args[1] : bignum_from_long(is_fixnum(args[1]) ? args[1]->as.fixnum : (long)args[1]->as.real);
+    gc_push_root(bb);
+    if (bb->as.bignum.len == 1 && bb->as.bignum.digits[0] == 0) vm_error(vm, "quotient: division by zero");
+    Value* q;
+    bignum_div_rem(ba, bb, &q, NULL);
+    gc_pop_root();
+    gc_pop_root();
+    return q;
 }
 
 static Value* prim_remainder(VM* vm, int nargs, Value** args) {
@@ -504,7 +509,16 @@ static Value* prim_remainder(VM* vm, int nargs, Value** args) {
         if (args[1]->as.fixnum == 0) vm_error(vm, "remainder: division by zero");
         return make_fixnum(args[0]->as.fixnum % args[1]->as.fixnum);
     }
-    return make_fixnum(0);
+    Value* ba = is_bignum(args[0]) ? args[0] : bignum_from_long(is_fixnum(args[0]) ? args[0]->as.fixnum : (long)args[0]->as.real);
+    gc_push_root(ba);
+    Value* bb = is_bignum(args[1]) ? args[1] : bignum_from_long(is_fixnum(args[1]) ? args[1]->as.fixnum : (long)args[1]->as.real);
+    gc_push_root(bb);
+    if (bb->as.bignum.len == 1 && bb->as.bignum.digits[0] == 0) vm_error(vm, "remainder: division by zero");
+    Value* r;
+    bignum_div_rem(ba, bb, NULL, &r);
+    gc_pop_root();
+    gc_pop_root();
+    return r;
 }
 
 static Value* prim_modulo(VM* vm, int nargs, Value** args) {
@@ -519,7 +533,20 @@ static Value* prim_modulo(VM* vm, int nargs, Value** args) {
         if ((r > 0 && b < 0) || (r < 0 && b > 0)) r += b;
         return make_fixnum(r);
     }
-    return make_fixnum(0);
+    Value* ba = is_bignum(args[0]) ? args[0] : bignum_from_long(is_fixnum(args[0]) ? args[0]->as.fixnum : (long)args[0]->as.real);
+    gc_push_root(ba);
+    Value* bb = is_bignum(args[1]) ? args[1] : bignum_from_long(is_fixnum(args[1]) ? args[1]->as.fixnum : (long)args[1]->as.real);
+    gc_push_root(bb);
+    if (bb->as.bignum.len == 1 && bb->as.bignum.digits[0] == 0) vm_error(vm, "modulo: division by zero");
+    Value* r;
+    bignum_div_rem(ba, bb, NULL, &r);
+    if ((r->as.bignum.sign == 1 && bb->as.bignum.sign == -1 && (r->as.bignum.len > 1 || r->as.bignum.digits[0] > 0)) ||
+        (r->as.bignum.sign == -1 && bb->as.bignum.sign == 1 && (r->as.bignum.len > 1 || r->as.bignum.digits[0] > 0))) {
+        r = bignum_add(r, bb);
+    }
+    gc_pop_root();
+    gc_pop_root();
+    return r;
 }
 
 static void register_prim(VM* vm, const char* name, Value* (*fn)(VM*, int, Value**)) {
@@ -564,6 +591,100 @@ static Value* prim_load(VM* vm, int nargs, Value** args) {
     }
     free(content);
     return result;
+}
+
+#include <math.h>
+
+static Value* prim_expt(VM* vm, int nargs, Value** args) {
+    if (nargs != 2) { vm_error(vm, "expt expects 2 args"); }
+    ensure_number(vm, args[0], "expt");
+    ensure_number(vm, args[1], "expt");
+
+    if (is_fixnum(args[0]) && is_fixnum(args[1]) && args[1]->as.fixnum >= 0) {
+        long base = args[0]->as.fixnum;
+        long exp = args[1]->as.fixnum;
+        if (exp == 0) return make_fixnum(1);
+        
+        Value* res = bignum_from_long(1);
+        gc_push_root(res);
+        Value* b = bignum_from_long(base);
+        gc_push_root(b);
+        
+        while (exp > 0) {
+            if (exp % 2 == 1) {
+                res = bignum_mul(res, b);
+                gc_pop_root(); gc_pop_root();
+                gc_push_root(res); gc_push_root(b);
+            }
+            b = bignum_mul(b, b);
+            gc_pop_root(); gc_pop_root();
+            gc_push_root(res); gc_push_root(b);
+            exp /= 2;
+        }
+        gc_pop_root();
+        Value* final_res = res;
+        gc_pop_root();
+        return final_res;
+    }
+
+    double v1 = is_real(args[0]) ? args[0]->as.real : (is_fixnum(args[0]) ? (double)args[0]->as.fixnum : bignum_to_double(args[0]));
+    double v2 = is_real(args[1]) ? args[1]->as.real : (is_fixnum(args[1]) ? (double)args[1]->as.fixnum : bignum_to_double(args[1]));
+    return make_real(pow(v1, v2));
+}
+
+static Value* prim_number_to_string(VM* vm, int nargs, Value** args) {
+    if (nargs < 1 || nargs > 2) { vm_error(vm, "number->string expects 1 or 2 args"); }
+    Value* n = args[0];
+    ensure_number(vm, n, "number->string");
+    
+    int radix = 10;
+    if (nargs == 2) {
+        if (!is_fixnum(args[1])) { vm_error(vm, "number->string: radix must be a fixnum"); }
+        radix = args[1]->as.fixnum;
+        if (radix != 2 && radix != 8 && radix != 10 && radix != 16) {
+            vm_error(vm, "number->string: unsupported radix %d", radix);
+        }
+    }
+
+    char buf[128];
+    if (is_fixnum(n)) {
+        if (radix == 10) sprintf(buf, "%ld", n->as.fixnum);
+        else if (radix == 8) sprintf(buf, "%lo", n->as.fixnum);
+        else if (radix == 16) sprintf(buf, "%lx", n->as.fixnum);
+        else if (radix == 2) {
+            unsigned long val = (unsigned long)n->as.fixnum;
+            if (n->as.fixnum < 0) {
+                buf[0] = '-';
+                val = (unsigned long)(-n->as.fixnum);
+            } else {
+                buf[0] = '\0';
+            }
+            char tmp[65];
+            int i = 0;
+            if (val == 0) tmp[i++] = '0';
+            while (val > 0) {
+                tmp[i++] = (val % 2) + '0';
+                val /= 2;
+            }
+            int start = (buf[0] == '-') ? 1 : 0;
+            for (int j = 0; j < i; j++) {
+                buf[start + j] = tmp[i - 1 - j];
+            }
+            buf[start + i] = '\0';
+        }
+        return make_string(buf);
+    } else if (is_real(n)) {
+        if (radix != 10) { vm_error(vm, "number->string: radix must be 10 for reals"); }
+        sprintf(buf, "%g", n->as.real);
+        return make_string(buf);
+    } else if (is_bignum(n)) {
+        if (radix != 10) { vm_error(vm, "number->string: radix must be 10 for bignums for now"); }
+        char* s = bignum_to_string(n);
+        Value* str = make_string(s);
+        free(s);
+        return str;
+    }
+    return make_string("");
 }
 
 void vm_register_primitives(VM* vm) {
@@ -630,5 +751,7 @@ void vm_register_primitives(VM* vm) {
     register_prim(vm, "display", prim_display);
     register_prim(vm, "write", prim_write);
     register_prim(vm, "newline", prim_newline);
+    register_prim(vm, "expt", prim_expt);
+    register_prim(vm, "number->string", prim_number_to_string);
 }
 

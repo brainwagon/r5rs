@@ -53,6 +53,12 @@ ${output}
         process.exit(1);
     }
 
+    // Hang detection
+    console.log("Running test: Trailing Unbalanced Parentheses");
+    // This should not hang
+    const hangOutput = exec_scheme("(+ 1 2))");
+    console.log("  PASS (Did not hang)");
+
     console.log("ALL TESTS PASSED");
     process.exit(0);
 };

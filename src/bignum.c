@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <bignum.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,6 +121,7 @@ Value* bignum_mul(Value* a, Value* b) {
 }
 
 char* bignum_to_string(Value* v) {
+    if (v->as.bignum.len == 0) return strdup("0");
     int cap = v->as.bignum.len * 9 + 2;
     char* str = malloc(cap);
     char* p = str;
@@ -130,6 +132,72 @@ char* bignum_to_string(Value* v) {
         p += sprintf(p, "%09u", v->as.bignum.digits[i]);
     }
     return str;
+}
+
+Value* bignum_div_long(Value* a, long b, long* rem) {
+    int sign = (b < 0) ? -a->as.bignum.sign : a->as.bignum.sign;
+    unsigned long divisor = (b < 0) ? -b : b;
+    
+    uint32_t* res_digits = malloc(sizeof(uint32_t) * a->as.bignum.len);
+    uint64_t remainder = 0;
+    
+    for (int i = a->as.bignum.len - 1; i >= 0; i--) {
+        uint64_t cur = a->as.bignum.digits[i] + remainder * BASE;
+        res_digits[i] = cur / divisor;
+        remainder = cur % divisor;
+    }
+    
+    if (rem) *rem = (long)remainder * a->as.bignum.sign;
+    
+    int len = a->as.bignum.len;
+    while (len > 1 && res_digits[len - 1] == 0) len--;
+    
+    Value* res = make_bignum(sign, res_digits, len);
+    free(res_digits);
+    return res;
+}
+
+// Full bignum division (Knuth's Algorithm D or simplified for now)
+// For Machin's formula, divisor is usually small, but let's implement at least 
+// division by bignum that fits in uint64_t
+void bignum_div_rem(Value* a, Value* b, Value** q, Value** r) {
+    if (b->as.bignum.len == 1) {
+        long rem;
+        Value* quotient = bignum_div_long(a, (long)b->as.bignum.digits[0] * b->as.bignum.sign, &rem);
+        if (q) *q = quotient;
+        if (r) *r = bignum_from_long(rem);
+        return;
+    }
+    
+    // Fallback or full Algorithm D
+    // For now, let's at least support bignum / bignum where divisor is relatively small
+    // but larger than BASE. 
+    // Actually, pi.scm uses (quotient scale x) and (quotient term x2).
+    // scale is (expt 10 1010), x is 5 or 239, x2 is 25 or 57121.
+    // These all fit in long. 
+    // The only other division is (quotient next-term n), where n goes up to ~1500.
+    // So bignum_div_long is sufficient for pi.scm.
+    
+    printf("DEBUG: Slow path in bignum_div_rem\n");
+    // Just in case, a very slow but correct division by subtraction
+    if (q) *q = bignum_from_long(0);
+    Value* remainder = a;
+    gc_push_root(remainder);
+    int q_sign = a->as.bignum.sign * b->as.bignum.sign;
+    Value* b_abs = make_bignum(1, b->as.bignum.digits, b->as.bignum.len);
+    gc_push_root(b_abs);
+    
+    while (compare_abs(remainder, b_abs) >= 0) {
+        remainder = sub_abs(remainder, b_abs, 1);
+        gc_pop_root(); gc_push_root(remainder);
+        if (q) {
+            Value* one = bignum_from_long(1);
+            *q = bignum_add(*q, one);
+        }
+    }
+    if (q) (*q)->as.bignum.sign = q_sign;
+    if (r) *r = remainder;
+    gc_pop_root(); gc_pop_root();
 }
 
 double bignum_to_double(Value* v) {

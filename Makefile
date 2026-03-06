@@ -1,7 +1,8 @@
 CC = gcc
 EMCC = emcc
 CFLAGS = -std=c99 -Wall -Wextra -Werror -Iinclude -fprofile-arcs -ftest-coverage
-EMFLAGS = -std=gnu99 -Wall -Wextra -Iinclude -s WASM=1 -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main', '_init_scheme', '_exec_scheme', '_get_output']" -s SINGLE_FILE=1 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH=1 -s SUPPORT_LONGJMP=1 -s DISABLE_EXCEPTION_CATCHING=0 --embed-file prelude.scm
+LDFLAGS = -lm
+EMFLAGS = -std=gnu99 -Wall -Wextra -Iinclude -s WASM=1 -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'cwrap', 'UTF8ToString']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main', '_init_scheme', '_exec_scheme', '_get_output']" -s SINGLE_FILE=1 -s FORCE_FILESYSTEM=1 -s ALLOW_MEMORY_GROWTH=1 -s SUPPORT_LONGJMP=1 -s DISABLE_EXCEPTION_CATCHING=0 --embed-file prelude.scm -lm
 
 SRC_DIR = src
 INC_DIR = include

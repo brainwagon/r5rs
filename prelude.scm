@@ -242,7 +242,7 @@
          (s (make-string len)))
     (let loop ((l lst) (i 0))
       (if (null? l) s
-          (begin (string-set! i (car l))
+          (begin (string-set! s i (car l))
                  (loop (cdr l) (+ i 1)))))))
 
 ;;; Higher-order functions
