@@ -3,10 +3,10 @@
 **Phase 1: Research and Scaffolding**
 - [x] **Task 1: Identify existing `equal?` implementation** [5f4a855]
     - [x] Locate `prim_equal_p` in `src/primitives.c`.
-- [ ] **Task 2: Create a reproduction test case for circularity**
-    - [ ] Create `tests/test_circular_equal.c` following the existing `test_equal.c` structure.
-    - [ ] Add tests for circular lists and circular vectors.
-    - [ ] Confirm that running these tests causes a crash or infinite loop.
+- [x] **Task 2: Create a reproduction test case for circularity** [b7c7174]
+    - [x] Create `tests/test_circular_equal.c` following the existing `test_equal.c` structure.
+    - [x] Add tests for circular lists and circular vectors.
+    - [x] Confirm that running these tests causes a crash or infinite loop.
 
 **Phase 2: Core Logic Implementation**
 - [ ] **Task 1: Design the Tortoise and Hare comparison logic**
