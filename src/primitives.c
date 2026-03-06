@@ -181,6 +181,22 @@ static Value* prim_cdr(VM* vm, int nargs, Value** args) {
     return args[0]->as.pair.cdr;
 }
 
+static Value* prim_set_car(VM* vm, int nargs, Value** args) {
+    if (nargs != 2 || !is_pair(args[0])) {
+        vm_error(vm, "set-car!: expected pair and object");
+    }
+    args[0]->as.pair.car = args[1];
+    return make_nil();
+}
+
+static Value* prim_set_cdr(VM* vm, int nargs, Value** args) {
+    if (nargs != 2 || !is_pair(args[0])) {
+        vm_error(vm, "set-cdr!: expected pair and object");
+    }
+    args[0]->as.pair.cdr = args[1];
+    return make_nil();
+}
+
 static Value* prim_list(VM* vm, int nargs, Value** args) {
     (void)vm;
     Value* res = make_nil();
@@ -717,6 +733,8 @@ void vm_register_primitives(VM* vm) {
     register_prim(vm, "cons", prim_cons);
     register_prim(vm, "car", prim_car);
     register_prim(vm, "cdr", prim_cdr);
+    register_prim(vm, "set-car!", prim_set_car);
+    register_prim(vm, "set-cdr!", prim_set_cdr);
     register_prim(vm, "list", prim_list);
     register_prim(vm, "pair?", prim_pair_p);
     register_prim(vm, "symbol?", prim_symbol_p);
