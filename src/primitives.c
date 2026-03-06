@@ -198,19 +198,19 @@ static Value* prim_null_p(VM* vm, int nargs, Value** args) {
 
 static Value* prim_display(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs >= 1) print_value(args[0], false);
+    if (nargs >= 1) fprint_value(stdout, args[0], false);
     return make_nil();
 }
 
 static Value* prim_write(VM* vm, int nargs, Value** args) {
     (void)vm;
-    if (nargs >= 1) print_value(args[0], true);
+    if (nargs >= 1) fprint_value(stdout, args[0], true);
     return make_nil();
 }
 
 static Value* prim_newline(VM* vm, int nargs, Value** args) {
     (void)vm; (void)nargs; (void)args;
-    printf("\n");
+    fprintf(stdout, "\n");
     return make_nil();
 }
 
