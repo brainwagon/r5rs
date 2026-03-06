@@ -3,7 +3,7 @@
 This list contains R5RS procedures and features that are currently unimplemented in this Scheme implementation.
 
 ## 6.1 Equalities
-- `equal?` - Partially implemented (handles pairs, strings, vectors, and atoms, but may not handle circular structures or all cases correctly).
+- `equal?` - Partially implemented (handles pairs, strings, vectors, and atoms, but may not handle circular structures).
 
 ## 6.2 Numbers
 - `complex?`, `rational?`, `integer?` - Predicates for the numeric tower.
@@ -21,9 +21,16 @@ This list contains R5RS procedures and features that are currently unimplemented
 - `char-upcase`, `char-downcase` - Character case conversion.
 
 ## 6.4 Control features
+- `apply` - Apply a procedure to a list of arguments.
+- `values`, `call-with-values` - Multiple return values support.
 - `dynamic-wind` - For non-local exits and re-entries.
 - `eval` - Evaluation of expressions.
 - `scheme-report-environment`, `null-environment`, `interaction-environment` - Environment specifiers for `eval`.
+- `delay`, `force` - Delayed evaluation.
+
+## 6.5 Derived expressions
+- `do` - Iteration construct.
+- `quasiquote`, `unquote`, `unquote-splicing` - Backquote template system.
 
 ## 6.6 Input and output
 - `call-with-input-file`, `call-with-output-file` - File I/O with automatic closing.
@@ -31,9 +38,10 @@ This list contains R5RS procedures and features that are currently unimplemented
 - `open-input-file`, `open-output-file`, `close-input-port`, `close-output-port` - Basic file I/O.
 - `input-port?`, `output-port?` - Port predicates.
 - `current-input-port`, `current-output-port` - Port accessors.
-- `read-char`, `peek-char`, `eof-object?`, `char-ready?` - Character-level input.
+- `read`, `read-char`, `peek-char`, `eof-object?`, `char-ready?` - Character-level input.
 - `write-char` - Character-level output.
 - `transcript-on`, `transcript-off` - Session logging.
 
 ## Macros
-- `let-syntax`, `letrec-syntax` - Local macro definitions.
+- `define-syntax` - Top-level macro definitions (partially implemented, doesn't handle all R5RS syntax).
+- `let-syntax`, `letrec-syntax` - Local macro definitions (implemented in compiler).

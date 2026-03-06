@@ -98,29 +98,25 @@
             fontSize: 14,
             fontFamily: '"Cascadia Code", "Fira Code", "Courier New", monospace'
         });
-        const fitAddon = {
-            activate: (terminal) => {
-                const resize = () => {
-                    const charWidth = terminal._core._renderService.dimensions.actualCellWidth;
-                    const charHeight = terminal._core._renderService.dimensions.actualCellHeight;
-                    if (!charWidth || !charHeight) return;
-                    
-                    const container = document.getElementById('terminal-container');
-                    const cols = Math.floor(container.clientWidth / charWidth);
-                    const rows = Math.floor(container.clientHeight / charHeight);
-                    terminal.resize(cols, rows);
-                };
-                window.addEventListener('resize', resize);
-                setTimeout(resize, 100);
-            }
-        };
-        
+
         term.open(document.getElementById('terminal-container'));
-        fitAddon.activate(term);
+
+        // Basic fit logic
+        function resizeTerminal() {
+            const charWidth = 9; // Fallback
+            const charHeight = 17; // Fallback
+            const container = document.getElementById('terminal-container');
+            const cols = Math.max(20, Math.floor(container.clientWidth / charWidth));
+            const rows = Math.max(5, Math.floor(container.clientHeight / charHeight));
+            term.resize(cols, rows);
+        }
+        window.addEventListener('resize', resizeTerminal);
+        setTimeout(resizeTerminal, 100);
 
         function clearTerminal() {
             term.clear();
             term.write('scheme> ');
+            currentLine = '';
         }
 
         term.writeln('\x1b[1;36mWelcome to R5RS Scheme Web Interpreter\x1b[0m');
@@ -128,11 +124,16 @@
         const client = new SchemeClient();
 
         let currentLine = '';
-        let history = JSON.parse(localStorage.getItem('repl_history') || '[]');
+        let history = [];
+        try {
+            history = JSON.parse(localStorage.getItem('repl_history') || '[]');
+        } catch (e) { console.warn('Failed to load history:', e); }
         let historyIndex = history.length;
 
         function saveHistory() {
-            localStorage.setItem('repl_history', JSON.stringify(history.slice(-100)));
+            try {
+                localStorage.setItem('repl_history', JSON.stringify(history.slice(-100)));
+            } catch (e) { console.warn('Failed to save history:', e); }
         }
 
         async function loadExample(name) {
@@ -153,16 +154,25 @@
         function isBalanced(code) {
             let count = 0;
             let inString = false;
+            let inComment = false;
             for (let i = 0; i < code.length; i++) {
-                if (code[i] === '"' && (i === 0 || code[i-1] !== '\\')) {
-                    inString = !inString;
+                if (!inString && code[i] === ';') {
+                    inComment = true;
                 }
-                if (!inString) {
-                    if (code[i] === '(') count++;
-                    if (code[i] === ')') count--;
+                if (inComment && code[i] === '\n') {
+                    inComment = false;
+                }
+                if (!inComment) {
+                    if (code[i] === '"' && (i === 0 || code[i-1] !== '\\')) {
+                        inString = !inString;
+                    }
+                    if (!inString) {
+                        if (code[i] === '(') count++;
+                        if (code[i] === ')') count--;
+                    }
                 }
             }
-            return count <= 0;
+            return count <= 0 && !inString;
         }
 
         // Signal ready
@@ -179,30 +189,69 @@
             }
         }, 500);
 
-        term.onData(e => {
-            switch (e) {
-                case '\r': // Enter
+        term.onData(data => {
+            for (let i = 0; i < data.length; i++) {
+                const char = data[i];
+                handleInput(char, data);
+                if (data.length > 1 && i === 0 && data[0] === '\x1b') {
+                    // It's likely an escape sequence, stop processing character by character
+                    // unless we want to handle them all. For now, arrow keys are handled in handleInput if matched exactly.
+                    if (data === '\x1b[A' || data === '\x1b[B') {
+                        break; 
+                    }
+                }
+            }
+        });
+
+        async function handleInput(char, fullData) {
+            // Special handling for escape sequences (arrows)
+            if (fullData === '\x1b[A') { // Up
+                if (historyIndex > 0) {
+                    historyIndex--;
+                    for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
+                    currentLine = history[historyIndex];
+                    term.write(currentLine);
+                }
+                return;
+            }
+            if (fullData === '\x1b[B') { // Down
+                if (historyIndex < history.length) {
+                    historyIndex++;
+                    for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
+                    if (historyIndex === history.length) {
+                        currentLine = '';
+                    } else {
+                        currentLine = history[historyIndex];
+                    }
+                    term.write(currentLine);
+                }
+                return;
+            }
+
+            // Normal character handling
+            switch (char) {
+                case '\r':
+                case '\n':
                     term.write('\r\n');
                     const trimmed = currentLine.trim();
                     if (trimmed.length > 0) {
                         if (isBalanced(currentLine)) {
-                            // Add to history if not empty and different from last
                             if (history.length === 0 || history[history.length - 1] !== currentLine) {
                                 history.push(currentLine);
                                 saveHistory();
                             }
                             historyIndex = history.length;
 
-                            client.execute(currentLine)
-                                .then(result => {
-                                    if (result) term.write(result.replace(/\n/g, '\r\n'));
-                                    term.write('scheme> ');
-                                })
-                                .catch(err => {
-                                    term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
-                                    term.write('scheme> ');
-                                });
+                            const codeToExec = currentLine;
                             currentLine = '';
+                            try {
+                                const result = await client.execute(codeToExec);
+                                if (result) term.write(result.replace(/\n/g, '\r\n'));
+                                term.write('scheme> ');
+                            } catch (err) {
+                                term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
+                                term.write('scheme> ');
+                            }
                         } else {
                             term.write('     > ');
                             currentLine += '\n';
@@ -212,41 +261,20 @@
                         currentLine = '';
                     }
                     break;
-                case '\u007F': // Backspace (DEL)
+                case '\b':
+                case '\u007F': // Backspace
                     if (currentLine.length > 0) {
                         currentLine = currentLine.slice(0, -1);
                         term.write('\b \b');
                     }
                     break;
-                case '\u001b[A': // Up Arrow
-                    if (historyIndex > 0) {
-                        historyIndex--;
-                        // Clear current line
-                        for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
-                        currentLine = history[historyIndex];
-                        term.write(currentLine);
-                    }
-                    break;
-                case '\u001b[B': // Down Arrow
-                    if (historyIndex < history.length) {
-                        historyIndex++;
-                        // Clear current line
-                        for (let i = 0; i < currentLine.length; i++) term.write('\b \b');
-                        if (historyIndex === history.length) {
-                            currentLine = '';
-                        } else {
-                            currentLine = history[historyIndex];
-                        }
-                        term.write(currentLine);
-                    }
-                    break;
                 default:
-                    if (e >= ' ' && e <= '~') {
-                        currentLine += e;
-                        term.write(e);
+                    if (char >= ' ' && char <= '~') {
+                        currentLine += char;
+                        term.write(char);
                     }
             }
-        });
+        }
     </script>
 </body>
 </html>
