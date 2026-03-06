@@ -2,8 +2,8 @@
 
 ## Phase 1: Emscripten Setup and Core Compilation
 - [x] Task: Set up Emscripten build environment (Makefile updates) [1a8656e]
-- [~] Task: Create a basic Emscripten-ready Scheme wrapper (`src/web_main.c`)
-- [ ] Task: Compile Scheme core to WebAssembly (Wasm) and verify functionality with `node` or a simple JS script
+- [x] Task: Create a basic Emscripten-ready Scheme wrapper (`src/web_main.c`) [591f3e8]
+- [~] Task: Compile Scheme core to WebAssembly (Wasm) and verify functionality with `node` or a simple JS script
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Emscripten Setup and Core Compilation' (Protocol in workflow.md)
 
 ## Phase 2: Web Worker Implementation and Messaging
