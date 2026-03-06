@@ -12,11 +12,11 @@
 - [x] Task: Implement asynchronous command execution and result reporting [93dd093]
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Web Worker Implementation and Messaging' (Protocol in workflow.md) [ab9aa85]
 
-## Phase 3: UI Development (xterm.js REPL)
+## Phase 3: UI Development (xterm.js REPL) [checkpoint: 149712e]
 - [x] Task: Integrate xterm.js into a basic HTML page (`index.html`) [45ce301]
 - [x] Task: Connect xterm.js input/output to the Web Worker messaging system [a945922]
-- [x] Task: Implement a functional REPL loop within the terminal [80e9643]
-- [~] Task: Conductor - User Manual Verification 'Phase 3: UI Development (xterm.js REPL)' (Protocol in workflow.md)
+- [x] Task: Implement a functional REPL loop within the terminal [149712e]
+- [x] Task: Conductor - User Manual Verification 'Phase 3: UI Development (xterm.js REPL)' (Protocol in workflow.md) [149712e]
 
 ## Phase 4: Persistence and Example Loaders
 - [ ] Task: Implement LocalStorage persistence for terminal history and virtual files
