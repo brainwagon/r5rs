@@ -25,7 +25,7 @@ all: scheme $(TEST_BINS)
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-web: $(WEB_DIR)/scheme.js $(WEB_DIR)/web_worker.js $(WEB_DIR)/web_client.js
+web: $(WEB_DIR)/scheme.js $(WEB_DIR)/web_worker.js $(WEB_DIR)/web_client.js $(WEB_DIR)/index.html
 
 $(WEB_DIR)/scheme.js: $(WEB_SRCS)
 	@mkdir -p $(WEB_DIR)
@@ -36,6 +36,10 @@ $(WEB_DIR)/web_worker.js: $(SRC_DIR)/web_worker.js
 	cp $< $@
 
 $(WEB_DIR)/web_client.js: $(SRC_DIR)/web_client.js
+	@mkdir -p $(WEB_DIR)
+	cp $< $@
+
+$(WEB_DIR)/index.html: $(SRC_DIR)/index.html
 	@mkdir -p $(WEB_DIR)
 	cp $< $@
 

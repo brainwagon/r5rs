@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>R5RS Scheme Web Interpreter</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: #eee;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 { margin-top: 0; }
+        #terminal-container {
+            flex-grow: 1;
+            background-color: #000;
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 10px;
+        }
+        .controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            background-color: #333;
+            color: white;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background-color: #444; }
+    </style>
+</head>
+<body>
+    <h1>R5RS Scheme</h1>
+    <div class="controls">
+        <button id="run-factorial">Factorial Example</button>
+        <button id="run-mandelbrot">Mandelbrot Example</button>
+    </div>
+    <div id="terminal-container"></div>
+
+    <script src="web_client.js"></script>
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: {
+                background: '#000000'
+            }
+        });
+        term.open(document.getElementById('terminal-container'));
+        term.writeln('\x1b[1;36mWelcome to R5RS Scheme Web Interpreter\x1b[0m');
+        term.writeln('Initializing Web Worker...');
+
+        const client = new SchemeClient();
+        
+        // This will be expanded in later tasks
+        term.write('\r\nscheme> ');
+    </script>
+</body>
+</html>
