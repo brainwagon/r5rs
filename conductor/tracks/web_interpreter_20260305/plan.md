@@ -14,8 +14,8 @@
 
 ## Phase 3: UI Development (xterm.js REPL)
 - [x] Task: Integrate xterm.js into a basic HTML page (`index.html`) [45ce301]
-- [~] Task: Connect xterm.js input/output to the Web Worker messaging system
-- [ ] Task: Implement a functional REPL loop within the terminal
+- [x] Task: Connect xterm.js input/output to the Web Worker messaging system [a945922]
+- [~] Task: Implement a functional REPL loop within the terminal
 - [ ] Task: Conductor - User Manual Verification 'Phase 3: UI Development (xterm.js REPL)' (Protocol in workflow.md)
 
 ## Phase 4: Persistence and Example Loaders
