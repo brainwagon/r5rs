@@ -6,6 +6,38 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
+#include <signal.h>
+
+static TerminalState* g_terminal_state = NULL;
+
+static void handle_sigtstp(int sig) {
+    (void)sig;
+    if (g_terminal_state && g_terminal_state->raw_mode_enabled) {
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_terminal_state->orig_termios);
+        g_terminal_state->raw_mode_enabled = 0;
+    }
+    /* Re-raise with default handler to actually suspend */
+    signal(SIGTSTP, SIG_DFL);
+    raise(SIGTSTP);
+}
+
+static void handle_sigcont(int sig) {
+    (void)sig;
+    /* Reinstall SIGTSTP handler */
+    signal(SIGTSTP, handle_sigtstp);
+    if (g_terminal_state && !g_terminal_state->raw_mode_enabled) {
+        struct termios raw = g_terminal_state->orig_termios;
+        raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+        raw.c_oflag &= ~(OPOST);
+        raw.c_cflag |= (CS8);
+        raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+        raw.c_lflag |= ISIG;
+        raw.c_cc[VMIN] = 1;
+        raw.c_cc[VTIME] = 0;
+        tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+        g_terminal_state->raw_mode_enabled = 1;
+    }
+}
 
 void terminal_init(TerminalState* state) {
     memset(state, 0, sizeof(TerminalState));
@@ -151,29 +183,36 @@ int terminal_is_balanced(const char* buf) {
 int terminal_enable_raw_mode(TerminalState* state) {
     if (state->raw_mode_enabled) return 0;
     if (!isatty(STDIN_FILENO)) return -1;
-    
+
     if (tcgetattr(STDIN_FILENO, &state->orig_termios) == -1) return -1;
-    
+
     struct termios raw = state->orig_termios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
-    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN);
+    raw.c_lflag |= ISIG;
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
-    
+
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) return -1;
-    
+
     state->raw_mode_enabled = 1;
+    g_terminal_state = state;
+    signal(SIGTSTP, handle_sigtstp);
+    signal(SIGCONT, handle_sigcont);
     return 0;
 }
 
 int terminal_disable_raw_mode(TerminalState* state) {
     if (!state->raw_mode_enabled) return 0;
-    
+
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &state->orig_termios) == -1) return -1;
-    
+
     state->raw_mode_enabled = 0;
+    g_terminal_state = NULL;
+    signal(SIGTSTP, SIG_DFL);
+    signal(SIGCONT, SIG_DFL);
     return 0;
 }
 
