@@ -8,8 +8,8 @@
 
 ## Phase 2: Web Worker Implementation and Messaging
 - [x] Task: Implement the Web Worker script (`src/web_worker.js`) to host the interpreter [e15d90e]
-- [~] Task: Define a messaging protocol between the main thread and the Web Worker (input/output)
-- [ ] Task: Implement asynchronous command execution and result reporting
+- [x] Task: Define a messaging protocol between the main thread and the Web Worker (input/output) [5fddad2]
+- [~] Task: Implement asynchronous command execution and result reporting
 - [ ] Task: Conductor - User Manual Verification 'Phase 2: Web Worker Implementation and Messaging' (Protocol in workflow.md)
 
 ## Phase 3: UI Development (xterm.js REPL)
