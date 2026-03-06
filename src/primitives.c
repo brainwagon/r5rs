@@ -295,33 +295,57 @@ static Value* prim_eqv_p(VM* vm, int nargs, Value** args) {
     return make_boolean(false);
 }
 
-static Value* prim_equal_p(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs != 2) { vm_error(vm, "equal? expects 2 args"); }
-    Value* a = args[0];
-    Value* b = args[1];
-    if (a == b) return make_boolean(true);
-    if (a->type != b->type) return make_boolean(false);
+static bool equal_internal(VM* vm, Value* a, Value* b, Value** visited) {
+    if (a == b) return true;
+    if (!a || !b) return false;
+    if (a->type != b->type) return false;
+
+    // Cycle detection for recursive types
+    if (is_pair(a) || is_vector(a)) {
+        Value* p = *visited;
+        while (is_pair(p)) {
+            Value* entry = p->as.pair.car;
+            if (entry->as.pair.car == a && entry->as.pair.cdr == b) return true;
+            p = p->as.pair.cdr;
+        }
+        // Record this comparison
+        Value* entry = make_pair(a, b);
+        gc_push_root(entry);
+        *visited = make_pair(entry, *visited);
+        gc_pop_root();
+    }
+
     switch (a->type) {
         case VAL_PAIR: {
-            Value* aa[2] = {a->as.pair.car, b->as.pair.car};
-            if (!prim_equal_p(vm, 2, aa)->as.boolean) return make_boolean(false);
-            Value* ab[2] = {a->as.pair.cdr, b->as.pair.cdr};
-            return prim_equal_p(vm, 2, ab);
+            if (!equal_internal(vm, a->as.pair.car, b->as.pair.car, visited)) return false;
+            return equal_internal(vm, a->as.pair.cdr, b->as.pair.cdr, visited);
         }
         case VAL_STRING:
-            return make_boolean(strcmp(a->as.string.str, b->as.string.str) == 0);
+            return strcmp(a->as.string.str, b->as.string.str) == 0;
         case VAL_VECTOR: {
-            if (a->as.vector.len != b->as.vector.len) return make_boolean(false);
+            if (a->as.vector.len != b->as.vector.len) return false;
             for (int i = 0; i < a->as.vector.len; i++) {
-                Value* av[2] = {a->as.vector.elements[i], b->as.vector.elements[i]};
-                if (!prim_equal_p(vm, 2, av)->as.boolean) return make_boolean(false);
+                if (!equal_internal(vm, a->as.vector.elements[i], b->as.vector.elements[i], visited)) return false;
             }
-            return make_boolean(true);
+            return true;
         }
-        default:
-            return prim_eqv_p(vm, nargs, args);
+        case VAL_FIXNUM: return a->as.fixnum == b->as.fixnum;
+        case VAL_BOOLEAN: return a->as.boolean == b->as.boolean;
+        case VAL_CHAR: return a->as.character == b->as.character;
+        case VAL_REAL: return a->as.real == b->as.real;
+        case VAL_BIGNUM: return bignum_compare(a, b) == 0;
+        case VAL_NIL: return true;
+        default: return a == b;
     }
+}
+
+static Value* prim_equal_p(VM* vm, int nargs, Value** args) {
+    if (nargs != 2) { vm_error(vm, "equal? expects 2 args"); }
+    Value* visited = make_nil();
+    gc_push_root(visited);
+    bool res = equal_internal(vm, args[0], args[1], &visited);
+    gc_pop_root();
+    return make_boolean(res);
 }
 
 static Value* prim_string_to_symbol(VM* vm, int nargs, Value** args) {

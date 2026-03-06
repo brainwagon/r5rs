@@ -61,7 +61,7 @@ void test_circular_vectors(void) {
     vm_register_primitives(&vm);
     
     const char* code = 
-        "(let ((v (vector 1 2))) "
+        "(let ((v (make-vector 2 1))) "
         "  (vector-set! v 0 v) "
         "  (equal? v v))";
     
