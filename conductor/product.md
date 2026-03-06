@@ -15,7 +15,7 @@ To build a small, embeddable Scheme interpreter conforming to the R5RS specifica
 - **Virtual Machine**: Compiles Scheme code into a straightforward bytecode for execution.
 - **REPL**: Interactive environment for development and testing.
 - **File Loading**: Support for loading and executing Scheme programs from external files.
-- **Language Core**: Full support for R5RS essential procedures and syntax.
+- **Language Core**: Full support for R5RS essential procedures and syntax, including mutation (`set-car!`, `set-cdr!`) and circular-safe equality (`equal?`).
 - **Pervasive Testing**: Integrated suite of R5RS compliance tests (e.g., pitfalls) to verify complex lexical and control flow behavior.
 
 ## Target Audience
