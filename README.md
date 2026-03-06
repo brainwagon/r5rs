@@ -2,6 +2,8 @@
 
 > **Note:** This entire implementation—from core VM and compiler to bignums, hygienic macros, and standard library—was developed using **Gemini CLI** in less than three and a half hours (started at 10:00 PM, finalized and committed by 1:30 AM).
 
+> **Experimental Implementation:** This is an experimental implementation of R5RS Scheme and is likely to harbor bugs. Use with caution in any production environment.
+
 A fast, small, and feature-complete R5RS Scheme implementation in C, featuring a bytecode VM, hygienic macros, and a robust standard library.
 
 ## Features
