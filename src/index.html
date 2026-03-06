@@ -141,9 +141,8 @@
                 if (!response.ok) throw new Error('Failed to fetch example: ' + name);
                 const code = await response.text();
                 term.writeln('\x1b[1;33mLoading ' + name + '...\x1b[0m');
-                const data = await client.execute(code);
-                if (data.output) term.write(data.output.replace(/\n/g, '\r\n'));
-                term.writeln(data.result);
+                const result = await client.execute(code);
+                if (result) term.write(result.replace(/\n/g, '\r\n'));
                 term.write('scheme> ');
             } catch (err) {
                 term.writeln('\x1b[31mError loading example: ' + err + '\x1b[0m');
@@ -195,9 +194,8 @@
                             historyIndex = history.length;
 
                             client.execute(currentLine)
-                                .then(data => {
-                                    if (data.output) term.write(data.output.replace(/\n/g, '\r\n'));
-                                    term.writeln(data.result);
+                                .then(result => {
+                                    if (result) term.write(result.replace(/\n/g, '\r\n'));
                                     term.write('scheme> ');
                                 })
                                 .catch(err => {

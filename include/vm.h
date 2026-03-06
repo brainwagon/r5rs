@@ -20,6 +20,8 @@ typedef struct VM {
     // Error recovery
     jmp_buf error_jmp;
     bool jmp_buf_set;
+
+    FILE* out;
 } VM;
 
 extern VM* global_vm_ptr;

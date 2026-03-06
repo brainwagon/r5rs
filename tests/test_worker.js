@@ -50,11 +50,11 @@ if (isMainThread) {
         try {
             const res1 = await client.execute("(+ 1 2)");
             console.log("Result 1: " + JSON.stringify(res1));
-            if (res1.result.trim() !== "3") throw new Error("FAIL: (+ 1 2) should be 3");
+            if (res1.trim() !== "3") throw new Error("FAIL: (+ 1 2) should be 3");
 
             const res2 = await client.execute("(display \"hello\")");
             console.log("Result 2: " + JSON.stringify(res2));
-            if (res2.output !== "hello") throw new Error("FAIL: (display \"hello\") output should be 'hello'");
+            if (res2.trim() !== "hello\n()") throw new Error("FAIL: (display \"hello\") output should be 'hello\\n()'");
 
             console.log("PASS");
             await client.terminate();
@@ -83,7 +83,6 @@ if (isMainThread) {
     });
 
     const exec_scheme = Module.cwrap('exec_scheme', 'string', ['string']);
-    const get_output = Module.cwrap('get_output', 'string', []);
 
     parentPort.on('message', async (data) => {
         const { type, payload, id } = data;
@@ -93,8 +92,7 @@ if (isMainThread) {
         if (type === 'EXEC') {
             try {
                 const result = exec_scheme(payload);
-                const output = get_output();
-                parentPort.postMessage({ type: 'RESULT', payload: { result, output }, id: id });
+                parentPort.postMessage({ type: 'RESULT', payload: result, id: id });
             } catch (err) {
                 parentPort.postMessage({ type: 'ERROR', payload: err.toString(), id: id });
             }

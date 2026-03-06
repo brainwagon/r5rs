@@ -13,14 +13,45 @@
 static VM global_vm;
 VM* global_vm_ptr = &global_vm;
 
+static void silent_load_file(VM* vm, const char* filename) {
+    FILE* f = fopen(filename, "r");
+    if (!f) return;
+    
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    
+    char* content = malloc(size + 1);
+    fread(content, 1, size, f);
+    content[size] = '\0';
+    fclose(f);
+    
+    // We don't use setjmp here because we want to know if it fails during init
+    // but we also don't want it to crash the worker.
+    // For now, assume prelude.scm is correct.
+    
+    const char* p = content;
+    while (p && *p) {
+        while (*p && isspace(*p)) p++;
+        if (!*p) break;
+        
+        Value* expr = read_sexpr_str(&p);
+        if (!expr) break;
+        
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
+        vm_run(vm, proto);
+        
+        gc_collect();
+    }
+    free(content);
+}
+
 EMSCRIPTEN_KEEPALIVE
 void init_scheme() {
     gc_init();
     vm_init(&global_vm);
     vm_register_primitives(&global_vm);
-
-    // Redirect stdout to a file in the virtual filesystem
-    freopen("/stdout.txt", "w", stdout);
+    silent_load_file(&global_vm, "prelude.scm");
 }
 
 int main() {
@@ -29,35 +60,16 @@ int main() {
 
 EMSCRIPTEN_KEEPALIVE
 const char* get_output() {
-    static char* output_buf = NULL;
-    if (output_buf) free(output_buf);
-
-    fflush(stdout);
-    FILE* f = fopen("/stdout.txt", "r");
-    if (!f) return "";
-
-    fseek(f, 0, SEEK_END);
-    long size = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    output_buf = malloc(size + 1);
-    if (!output_buf) return "";
-    fread(output_buf, 1, size, f);
-    output_buf[size] = '\0';
-    fclose(f);
-
-    // Clear the file for next time
-    freopen("/stdout.txt", "w", stdout);
-
-    return output_buf;
+    return "";
 }
+
+static char* last_result = NULL;
 
 EMSCRIPTEN_KEEPALIVE
 const char* exec_scheme(const char* input) {
-    static char* result_buffer = NULL;
-    if (result_buffer) {
-        free(result_buffer);
-        result_buffer = NULL;
+    if (last_result) {
+        free(last_result);
+        last_result = NULL;
     }
 
     char* mem_buf = NULL;
@@ -65,12 +77,15 @@ const char* exec_scheme(const char* input) {
     FILE* out = open_memstream(&mem_buf, &mem_size);
     if (!out) return "Error: failed to open memstream";
     
+    global_vm.out = out;
+    
     if (setjmp(global_vm.error_jmp) != 0) {
         global_vm.jmp_buf_set = false;
-        fprintf(out, "Error occurred during execution.");
+        fflush(out);
         fclose(out);
-        result_buffer = mem_buf;
-        return result_buffer;
+        global_vm.out = stdout;
+        last_result = mem_buf;
+        return last_result;
     }
     global_vm.jmp_buf_set = true;
     
@@ -85,14 +100,17 @@ const char* exec_scheme(const char* input) {
         Value* proto = compile(expr, make_nil(), global_vm.syntax_env, -1, false);
         Value* result = vm_run(&global_vm, proto);
         
+        fputc('\n', out);
         fprint_value(out, result, true);
-        fprintf(out, "\n");
+        fputc('\n', out);
         
         gc_collect();
     }
     
     global_vm.jmp_buf_set = false;
+    fflush(out);
     fclose(out);
-    result_buffer = mem_buf;
-    return result_buffer;
+    global_vm.out = stdout;
+    last_result = mem_buf;
+    return last_result;
 }

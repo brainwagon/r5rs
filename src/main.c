@@ -59,8 +59,8 @@ static void load_file(VM* vm, const char* filename, bool silent) {
         Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
         Value* result = vm_run(vm, proto);
         if (!silent) {
-            print_value(result, true);
-            printf("\n");
+            fprint_value(vm->out, result, true);
+            fprintf(vm->out, "\n");
         }
         gc_collect();
     }
@@ -127,8 +127,8 @@ static void repl(VM* vm) {
             
             terminal_write_str(COLOR_CYAN);
             fflush(stdout);
-            print_value(result, true);
-            fflush(stdout);
+            fprint_value(vm->out, result, true);
+            fflush(vm->out);
             terminal_write_str(COLOR_RESET "\r\n");
             fflush(stdout);
             tcdrain(STDOUT_FILENO);

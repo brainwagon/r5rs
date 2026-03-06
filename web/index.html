@@ -9,59 +9,121 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
-            background-color: #1a1a1a;
-            color: #eee;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            padding: 0;
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             flex-direction: column;
             height: 100vh;
-            box-sizing: border-box;
+            overflow: hidden;
         }
-        h1 { margin-top: 0; }
+        header {
+            background-color: #1f1f1f;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+        }
+        h1 { 
+            margin: 0; 
+            font-size: 1.2rem;
+            color: #4fc3f7;
+            font-weight: 500;
+        }
         #terminal-container {
             flex-grow: 1;
             background-color: #000;
-            border-radius: 8px;
-            overflow: hidden;
-            padding: 10px;
+            position: relative;
         }
         .controls {
-            margin-bottom: 20px;
             display: flex;
-            gap: 10px;
+            gap: 8px;
         }
         button {
-            padding: 8px 16px;
+            padding: 6px 12px;
             background-color: #333;
-            color: white;
+            color: #fff;
             border: 1px solid #444;
             border-radius: 4px;
             cursor: pointer;
+            font-size: 0.85rem;
+            transition: background-color 0.2s, border-color 0.2s;
         }
-        button:hover { background-color: #444; }
+        button:hover { 
+            background-color: #444; 
+            border-color: #555;
+        }
+        button:active {
+            background-color: #222;
+        }
+        footer {
+            background-color: #1f1f1f;
+            padding: 5px 20px;
+            font-size: 0.75rem;
+            color: #888;
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
-    <h1>R5RS Scheme</h1>
-    <div class="controls">
-        <button onclick="loadExample('factorial.scm')">Factorial Example</button>
-        <button onclick="loadExample('mandelbrot.scm')">Mandelbrot Example</button>
-        <button onclick="loadExample('nqueens.scm')">N-Queens Example</button>
-    </div>
+    <header>
+        <h1>R5RS Scheme</h1>
+        <div class="controls">
+            <button onclick="loadExample('factorial.scm')">Factorial</button>
+            <button onclick="loadExample('mandelbrot.scm')">Mandelbrot</button>
+            <button onclick="loadExample('nqueens.scm')">N-Queens</button>
+            <button onclick="clearTerminal()">Clear</button>
+        </div>
+    </header>
     <div id="terminal-container"></div>
+    <footer>
+        <span>Web Interpreter (Emscripten + xterm.js)</span>
+        <span id="status">Initializing...</span>
+    </footer>
 
     <script src="web_client.js"></script>
     <script>
         const term = new Terminal({
             cursorBlink: true,
             theme: {
-                background: '#000000'
-            }
+                background: '#000000',
+                foreground: '#ffffff',
+                cursor: '#4fc3f7'
+            },
+            fontSize: 14,
+            fontFamily: '"Cascadia Code", "Fira Code", "Courier New", monospace'
         });
+        const fitAddon = {
+            activate: (terminal) => {
+                const resize = () => {
+                    const charWidth = terminal._core._renderService.dimensions.actualCellWidth;
+                    const charHeight = terminal._core._renderService.dimensions.actualCellHeight;
+                    if (!charWidth || !charHeight) return;
+                    
+                    const container = document.getElementById('terminal-container');
+                    const cols = Math.floor(container.clientWidth / charWidth);
+                    const rows = Math.floor(container.clientHeight / charHeight);
+                    terminal.resize(cols, rows);
+                };
+                window.addEventListener('resize', resize);
+                setTimeout(resize, 100);
+            }
+        };
+        
         term.open(document.getElementById('terminal-container'));
+        fitAddon.activate(term);
+
+        function clearTerminal() {
+            term.clear();
+            term.write('scheme> ');
+        }
+
         term.writeln('\x1b[1;36mWelcome to R5RS Scheme Web Interpreter\x1b[0m');
-        term.writeln('Initializing Web Worker...');
 
         const client = new SchemeClient();
 
@@ -79,9 +141,8 @@
                 if (!response.ok) throw new Error('Failed to fetch example: ' + name);
                 const code = await response.text();
                 term.writeln('\x1b[1;33mLoading ' + name + '...\x1b[0m');
-                const data = await client.execute(code);
-                if (data.output) term.write(data.output.replace(/\n/g, '\r\n'));
-                term.writeln(data.result);
+                const result = await client.execute(code);
+                if (result) term.write(result.replace(/\n/g, '\r\n'));
                 term.write('scheme> ');
             } catch (err) {
                 term.writeln('\x1b[31mError loading example: ' + err + '\x1b[0m');
@@ -106,7 +167,7 @@
 
         // Signal ready
         setTimeout(async () => {
-            term.writeln('Worker Ready.');
+            document.getElementById('status').innerText = 'Ready';
             
             // Handle URL parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -133,9 +194,8 @@
                             historyIndex = history.length;
 
                             client.execute(currentLine)
-                                .then(data => {
-                                    if (data.output) term.write(data.output.replace(/\n/g, '\r\n'));
-                                    term.writeln(data.result);
+                                .then(result => {
+                                    if (result) term.write(result.replace(/\n/g, '\r\n'));
                                     term.write('scheme> ');
                                 })
                                 .catch(err => {

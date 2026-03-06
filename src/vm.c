@@ -19,6 +19,7 @@ void vm_init(VM* vm) {
     gc_set_stack_root(&vm->stack, &vm->sp);
     vm->running = false;
     vm->jmp_buf_set = false;
+    vm->out = stdout;
 }
 
 void vm_cleanup(VM* vm) {
@@ -31,9 +32,9 @@ void vm_cleanup(VM* vm) {
 void vm_error(VM* vm, const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
-    fprintf(stderr, "Error: ");
-    vfprintf(stderr, fmt, args);
-    fprintf(stderr, "\n");
+    fprintf(vm->out, "Error: ");
+    vfprintf(vm->out, fmt, args);
+    fprintf(vm->out, "\n");
     va_end(args);
 
     if (vm->jmp_buf_set) {

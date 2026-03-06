@@ -14,7 +14,6 @@ let initPromise = new Promise((resolve) => {
 });
 
 const exec_scheme = Module.cwrap('exec_scheme', 'string', ['string']);
-const get_output = Module.cwrap('get_output', 'string', []);
 
 self.onmessage = async function(e) {
     const { type, payload, id } = e.data;
@@ -24,8 +23,7 @@ self.onmessage = async function(e) {
     if (type === 'EXEC') {
         try {
             const result = exec_scheme(payload);
-            const output = get_output();
-            self.postMessage({ type: 'RESULT', payload: { result, output }, id: id });
+            self.postMessage({ type: 'RESULT', payload: result, id: id });
         } catch (err) {
             self.postMessage({ type: 'ERROR', payload: err.toString(), id: id });
         }
