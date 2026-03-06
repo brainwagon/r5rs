@@ -102,7 +102,7 @@ Value* bignum_sub(Value* a, Value* b) {
     }
 }
 
-Value* bignum_mul(Value* a, Value* b) {
+static Value* schoolbook_mul(Value* a, Value* b) {
     int res_len = a->as.bignum.len + b->as.bignum.len;
     uint32_t* res_digits = calloc(res_len, sizeof(uint32_t));
     for (int i = 0; i < a->as.bignum.len; i++) {
@@ -117,6 +117,102 @@ Value* bignum_mul(Value* a, Value* b) {
     while (i > 1 && res_digits[i - 1] == 0) i--;
     Value* res = make_bignum(a->as.bignum.sign * b->as.bignum.sign, res_digits, i);
     free(res_digits);
+    return res;
+}
+
+static Value* bignum_shift(Value* a, int k) {
+    if (k == 0) return a;
+    if (bignum_is_zero(a)) return a;
+    
+    int new_len = a->as.bignum.len + k;
+    uint32_t* res_digits = calloc(new_len, sizeof(uint32_t));
+    memcpy(res_digits + k, a->as.bignum.digits, a->as.bignum.len * sizeof(uint32_t));
+    
+    Value* res = make_bignum(a->as.bignum.sign, res_digits, new_len);
+    free(res_digits);
+    return res;
+}
+
+Value* bignum_mul(Value* a, Value* b) {
+    int n = (a->as.bignum.len > b->as.bignum.len ? a->as.bignum.len : b->as.bignum.len);
+    
+    // Threshold for Karatsuba
+    if (n < 32) {
+        return schoolbook_mul(a, b);
+    }
+    
+    int k = n / 2;
+    
+    // x = x1 * B^k + x0
+    // y = y1 * B^k + y0
+    
+    Value* x0 = make_bignum(1, a->as.bignum.digits, (a->as.bignum.len < k ? a->as.bignum.len : k));
+    gc_push_root(x0);
+    Value* x1;
+    if (a->as.bignum.len <= k) {
+        x1 = bignum_from_long(0);
+    } else {
+        x1 = make_bignum(1, a->as.bignum.digits + k, a->as.bignum.len - k);
+    }
+    gc_push_root(x1);
+    
+    Value* y0 = make_bignum(1, b->as.bignum.digits, (b->as.bignum.len < k ? b->as.bignum.len : k));
+    gc_push_root(y0);
+    Value* y1;
+    if (b->as.bignum.len <= k) {
+        y1 = bignum_from_long(0);
+    } else {
+        y1 = make_bignum(1, b->as.bignum.digits + k, b->as.bignum.len - k);
+    }
+    gc_push_root(y1);
+    
+    // z2 = x1 * y1
+    Value* z2 = bignum_mul(x1, y1);
+    gc_push_root(z2);
+    
+    // z0 = x0 * y0
+    Value* z0 = bignum_mul(x0, y0);
+    gc_push_root(z0);
+    
+    // z1 = (x1 + x0) * (y1 + y0) - z2 - z0
+    Value* x1x0 = bignum_add(x1, x0);
+    gc_push_root(x1x0);
+    Value* y1y0 = bignum_add(y1, y0);
+    gc_push_root(y1y0);
+    
+    Value* z1 = bignum_mul(x1x0, y1y0);
+    gc_push_root(z1);
+    z1 = bignum_sub(z1, z2);
+    gc_pop_root(); gc_push_root(z1);
+    z1 = bignum_sub(z1, z0);
+    gc_pop_root(); gc_push_root(z1);
+    
+    // res = z2 * B^(2k) + z1 * B^k + z0
+    Value* z2_shifted = bignum_shift(z2, 2 * k);
+    gc_push_root(z2_shifted);
+    Value* z1_shifted = bignum_shift(z1, k);
+    gc_push_root(z1_shifted);
+    
+    Value* res = bignum_add(z2_shifted, z1_shifted);
+    gc_push_root(res);
+    res = bignum_add(res, z0);
+    
+    res->as.bignum.sign = a->as.bignum.sign * b->as.bignum.sign;
+    
+    // Pop all roots
+    gc_pop_root(); // res
+    gc_pop_root(); // z1_shifted
+    gc_pop_root(); // z2_shifted
+    gc_pop_root(); // z1
+    gc_pop_root(); // y1y0
+    gc_pop_root(); // x1x0
+    gc_pop_root(); // z0
+    gc_pop_root(); // z2
+    gc_pop_root(); // y1
+    gc_pop_root(); // y0
+    gc_pop_root(); // x1
+    gc_pop_root(); // x0
+    
     return res;
 }
 
@@ -161,6 +257,11 @@ Value* bignum_div_long(Value* a, long b, long* rem) {
 // For Machin's formula, divisor is usually small, but let's implement at least 
 // division by bignum that fits in uint64_t
 void bignum_div_rem(Value* a, Value* b, Value** q, Value** r) {
+    if (bignum_is_zero(b)) {
+        // Division by zero - should probably be handled by the VM
+        return;
+    }
+
     if (b->as.bignum.len == 1) {
         long rem;
         Value* quotient = bignum_div_long(a, (long)b->as.bignum.digits[0] * b->as.bignum.sign, &rem);
@@ -168,36 +269,116 @@ void bignum_div_rem(Value* a, Value* b, Value** q, Value** r) {
         if (r) *r = bignum_from_long(rem);
         return;
     }
-    
-    // Fallback or full Algorithm D
-    // For now, let's at least support bignum / bignum where divisor is relatively small
-    // but larger than BASE. 
-    // Actually, pi.scm uses (quotient scale x) and (quotient term x2).
-    // scale is (expt 10 1010), x is 5 or 239, x2 is 25 or 57121.
-    // These all fit in long. 
-    // The only other division is (quotient next-term n), where n goes up to ~1500.
-    // So bignum_div_long is sufficient for pi.scm.
-    
-    printf("DEBUG: Slow path in bignum_div_rem\n");
-    // Just in case, a very slow but correct division by subtraction
-    if (q) *q = bignum_from_long(0);
-    Value* remainder = a;
-    gc_push_root(remainder);
-    int q_sign = a->as.bignum.sign * b->as.bignum.sign;
-    Value* b_abs = make_bignum(1, b->as.bignum.digits, b->as.bignum.len);
-    gc_push_root(b_abs);
-    
-    while (compare_abs(remainder, b_abs) >= 0) {
-        remainder = sub_abs(remainder, b_abs, 1);
-        gc_pop_root(); gc_push_root(remainder);
-        if (q) {
-            Value* one = bignum_from_long(1);
-            *q = bignum_add(*q, one);
-        }
+
+    int cmp = compare_abs(a, b);
+    if (cmp < 0) {
+        if (q) *q = bignum_from_long(0);
+        if (r) *r = a;
+        return;
     }
-    if (q) (*q)->as.bignum.sign = q_sign;
-    if (r) *r = remainder;
-    gc_pop_root(); gc_pop_root();
+
+    // Algorithm D implementation
+    int n = b->as.bignum.len;
+    int m = a->as.bignum.len - n;
+
+    // Normalization: shift left so the most significant digit of b is >= BASE/2
+    uint32_t d = BASE / (b->as.bignum.digits[n - 1] + 1);
+    
+    // We can use schoolbook multiplication by d as a way to "shift"
+    Value* v_val = make_bignum(1, b->as.bignum.digits, b->as.bignum.len);
+    gc_push_root(v_val);
+    if (d > 1) {
+        Value* d_val = bignum_from_long(d);
+        gc_push_root(d_val);
+        v_val = schoolbook_mul(v_val, d_val);
+        gc_pop_root(); gc_pop_root(); gc_push_root(v_val);
+    }
+
+    Value* u_val = make_bignum(1, a->as.bignum.digits, a->as.bignum.len);
+    gc_push_root(u_val);
+    if (d > 1) {
+        Value* d_val = bignum_from_long(d);
+        gc_push_root(d_val);
+        u_val = schoolbook_mul(u_val, d_val);
+        gc_pop_root(); gc_pop_root(); gc_push_root(u_val);
+    }
+
+    // Ensure u has m+n+1 digits (might already have if d > 1)
+    if (u_val->as.bignum.len == a->as.bignum.len) {
+        uint32_t* new_u = calloc(u_val->as.bignum.len + 1, sizeof(uint32_t));
+        memcpy(new_u, u_val->as.bignum.digits, u_val->as.bignum.len * sizeof(uint32_t));
+        Value* next_u = make_bignum(1, new_u, u_val->as.bignum.len + 1);
+        free(new_u);
+        gc_pop_root(); u_val = next_u; gc_push_root(u_val);
+    }
+
+    uint32_t* q_digits = calloc(m + 1, sizeof(uint32_t));
+    uint32_t* u = u_val->as.bignum.digits;
+    uint32_t* v = v_val->as.bignum.digits;
+
+    for (int j = m; j >= 0; j--) {
+        // Estimate q_hat
+        uint64_t u_top = (uint64_t)u[j + n] * BASE + u[j + n - 1];
+        uint64_t q_hat = u_top / v[n - 1];
+        uint64_t r_hat = u_top % v[n - 1];
+
+        while (q_hat >= BASE || q_hat * v[n - 2] > BASE * r_hat + u[j + n - 2]) {
+            q_hat--;
+            r_hat += v[n - 1];
+            if (r_hat >= BASE) break;
+        }
+
+        // Multiply and subtract
+        int64_t borrow = 0;
+        for (int i = 0; i < n; i++) {
+            uint64_t prod = q_hat * v[i];
+            int64_t diff = (int64_t)u[j + i] - (prod % BASE) - borrow;
+            if (diff < 0) {
+                u[j + i] = diff + BASE;
+                borrow = (prod / BASE) + 1;
+            } else {
+                u[j + i] = diff;
+                borrow = (prod / BASE);
+            }
+        }
+        int64_t diff = (int64_t)u[j + n] - borrow;
+        if (diff < 0) {
+            // Add back if q_hat was too large
+            q_hat--;
+            u[j + n] = diff + BASE; // effectively adding BASE^n is handled by borrow chain
+            // But Algorithm D says add v back to u[j..j+n]
+            uint64_t carry = 0;
+            for (int i = 0; i < n; i++) {
+                uint64_t sum = (uint64_t)u[j + i] + v[i] + carry;
+                u[j + i] = sum % BASE;
+                carry = sum / BASE;
+            }
+            u[j + n] = (u[j + n] + carry) % BASE;
+        } else {
+            u[j + n] = diff;
+        }
+        q_digits[j] = (uint32_t)q_hat;
+    }
+
+    if (q) {
+        int q_len = m + 1;
+        while (q_len > 1 && q_digits[q_len - 1] == 0) q_len--;
+        *q = make_bignum(a->as.bignum.sign * b->as.bignum.sign, q_digits, q_len);
+    }
+    if (r) {
+        // Denormalize u to get remainder
+        Value* rem_val = make_bignum(1, u, n);
+        if (d > 1) {
+            long dummy;
+            rem_val = bignum_div_long(rem_val, d, &dummy);
+        }
+        rem_val->as.bignum.sign = a->as.bignum.sign;
+        *r = rem_val;
+    }
+
+    free(q_digits);
+    gc_pop_root(); // u_val
+    gc_pop_root(); // v_val
 }
 
 double bignum_to_double(Value* v) {
@@ -208,4 +389,52 @@ double bignum_to_double(Value* v) {
         factor *= BASE;
     }
     return res * v->as.bignum.sign;
+}
+
+bool bignum_is_zero(Value* v) {
+    return v->as.bignum.len == 1 && v->as.bignum.digits[0] == 0;
+}
+
+bool bignum_is_odd(Value* v) {
+    return v->as.bignum.digits[0] % 2 != 0;
+}
+
+bool bignum_is_negative(Value* v) {
+    return v->as.bignum.sign < 0;
+}
+
+Value* bignum_expt(Value* base, Value* exp) {
+    // Both base and exp are bignums. exp is assumed non-negative.
+    if (bignum_is_zero(exp)) return bignum_from_long(1);
+    
+    Value* res = bignum_from_long(1);
+    gc_push_root(res);
+    
+    Value* b = base;
+    gc_push_root(b);
+    
+    Value* e = exp;
+    gc_push_root(e);
+    
+    while (!bignum_is_zero(e)) {
+        if (bignum_is_odd(e)) {
+            res = bignum_mul(res, b);
+            gc_pop_root(); gc_push_root(res);
+        }
+        
+        long rem;
+        e = bignum_div_long(e, 2, &rem);
+        gc_pop_root(); gc_pop_root(); // pop res, e
+        gc_push_root(e); gc_push_root(res);
+        
+        if (!bignum_is_zero(e)) {
+            b = bignum_mul(b, b);
+            gc_pop_root(); gc_pop_root(); gc_pop_root(); // pop res, e, b
+            gc_push_root(b); gc_push_root(e); gc_push_root(res);
+        }
+    }
+    
+    Value* final_res = res;
+    gc_pop_root(); gc_pop_root(); gc_pop_root();
+    return final_res;
 }

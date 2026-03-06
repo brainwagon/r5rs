@@ -12,5 +12,9 @@ char* bignum_to_string(Value* v);
 double bignum_to_double(Value* v);
 Value* bignum_div_long(Value* a, long b, long* rem);
 void bignum_div_rem(Value* a, Value* b, Value** q, Value** r);
+Value* bignum_expt(Value* base, Value* exp);
+bool bignum_is_zero(Value* v);
+bool bignum_is_odd(Value* v);
+bool bignum_is_negative(Value* v);
 
 #endif /* BIGNUM_H */

@@ -600,35 +600,33 @@ static Value* prim_expt(VM* vm, int nargs, Value** args) {
     ensure_number(vm, args[0], "expt");
     ensure_number(vm, args[1], "expt");
 
-    if (is_fixnum(args[0]) && is_fixnum(args[1]) && args[1]->as.fixnum >= 0) {
-        long base = args[0]->as.fixnum;
-        long exp = args[1]->as.fixnum;
-        if (exp == 0) return make_fixnum(1);
+    Value* base = args[0];
+    Value* exp = args[1];
+
+    // If exponent is an exact integer
+    if (is_fixnum(exp) || is_bignum(exp)) {
+        bool exp_neg = is_fixnum(exp) ? (exp->as.fixnum < 0) : bignum_is_negative(exp);
+        bool exp_zero = is_fixnum(exp) ? (exp->as.fixnum == 0) : bignum_is_zero(exp);
         
-        Value* res = bignum_from_long(1);
-        gc_push_root(res);
-        Value* b = bignum_from_long(base);
-        gc_push_root(b);
+        if (exp_zero) return make_fixnum(1);
         
-        while (exp > 0) {
-            if (exp % 2 == 1) {
-                res = bignum_mul(res, b);
-                gc_pop_root(); gc_pop_root();
-                gc_push_root(res); gc_push_root(b);
-            }
-            b = bignum_mul(b, b);
-            gc_pop_root(); gc_pop_root();
-            gc_push_root(res); gc_push_root(b);
-            exp /= 2;
+        if (!exp_neg && (is_fixnum(base) || is_bignum(base))) {
+            // Exact integer base and non-negative exact integer exponent -> Exact result
+            Value* b_big = is_fixnum(base) ? bignum_from_long(base->as.fixnum) : base;
+            gc_push_root(b_big);
+            Value* e_big = is_fixnum(exp) ? bignum_from_long(exp->as.fixnum) : exp;
+            gc_push_root(e_big);
+            
+            Value* res = bignum_expt(b_big, e_big);
+            
+            gc_pop_root();
+            gc_pop_root();
+            return res;
         }
-        gc_pop_root();
-        Value* final_res = res;
-        gc_pop_root();
-        return final_res;
     }
 
-    double v1 = is_real(args[0]) ? args[0]->as.real : (is_fixnum(args[0]) ? (double)args[0]->as.fixnum : bignum_to_double(args[0]));
-    double v2 = is_real(args[1]) ? args[1]->as.real : (is_fixnum(args[1]) ? (double)args[1]->as.fixnum : bignum_to_double(args[1]));
+    double v1 = is_real(base) ? base->as.real : (is_fixnum(base) ? (double)base->as.fixnum : bignum_to_double(base));
+    double v2 = is_real(exp) ? exp->as.real : (is_fixnum(exp) ? (double)exp->as.fixnum : bignum_to_double(exp));
     return make_real(pow(v1, v2));
 }
 
