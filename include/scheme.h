@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 typedef enum {
     OP_HALT,    // [1]
@@ -122,6 +123,9 @@ void gc_shutdown(void);
 Value* gc_alloc(ValueType type);
 void gc_collect(void);
 void gc_add_root(Value** root);
+void gc_remove_root(Value** root);
+void gc_push_root(Value* v);
+void gc_pop_root(void);
 void gc_set_stack_root(Value*** stack, int* sp);
 int gc_get_object_count(void);
 
@@ -142,5 +146,6 @@ bool is_primitive(Value* v);
 bool is_continuation(Value* v);
 
 void print_value(Value* v, bool quoted);
+void fprint_value(FILE* f, Value* v, bool quoted);
 
 #endif /* SCHEME_H */
