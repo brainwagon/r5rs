@@ -20,3 +20,4 @@ tests/test_vm_data
 *.gcda
 *.gcno
 *.gcov
+web/scheme.js

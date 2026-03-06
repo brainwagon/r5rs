@@ -11,7 +11,19 @@
 #include <ctype.h>
 #include <unistd.h>
 
-static Value* num_add(Value* a, Value* b) {
+static bool is_number(Value* v) {
+    return is_fixnum(v) || is_bignum(v) || is_real(v);
+}
+
+static void ensure_number(VM* vm, Value* v, const char* op) {
+    if (!is_number(v)) {
+        vm_error(vm, "%s: expected number, got something else", op);
+    }
+}
+
+static Value* num_add(VM* vm, Value* a, Value* b) {
+    ensure_number(vm, a, "+");
+    ensure_number(vm, b, "+");
     if (is_fixnum(a) && is_fixnum(b)) {
         long va = a->as.fixnum;
         long vb = b->as.fixnum;
@@ -31,7 +43,9 @@ static Value* num_add(Value* a, Value* b) {
     return bignum_add(ba, bb);
 }
 
-static Value* num_sub(Value* a, Value* b) {
+static Value* num_sub(VM* vm, Value* a, Value* b) {
+    ensure_number(vm, a, "-");
+    ensure_number(vm, b, "-");
     if (is_fixnum(a) && is_fixnum(b)) {
         long va = a->as.fixnum;
         long vb = b->as.fixnum;
@@ -51,7 +65,9 @@ static Value* num_sub(Value* a, Value* b) {
     return bignum_sub(ba, bb);
 }
 
-static Value* num_mul(Value* a, Value* b) {
+static Value* num_mul(VM* vm, Value* a, Value* b) {
+    ensure_number(vm, a, "*");
+    ensure_number(vm, b, "*");
     if (is_fixnum(a) && is_fixnum(b)) {
         long va = a->as.fixnum;
         long vb = b->as.fixnum;
@@ -74,7 +90,9 @@ static Value* num_mul(Value* a, Value* b) {
     return bignum_mul(ba, bb);
 }
 
-static int num_compare(Value* a, Value* b) {
+static int num_compare(VM* vm, Value* a, Value* b, const char* op) {
+    ensure_number(vm, a, op);
+    ensure_number(vm, b, op);
     if (is_fixnum(a) && is_fixnum(b)) {
         if (a->as.fixnum > b->as.fixnum) return 1;
         if (a->as.fixnum < b->as.fixnum) return -1;
@@ -93,59 +111,56 @@ static int num_compare(Value* a, Value* b) {
 }
 
 static Value* prim_add(VM* vm, int nargs, Value** args) {
-    (void)vm;
     Value* res = make_fixnum(0);
-    for (int i = 0; i < nargs; i++) res = num_add(res, args[i]);
+    for (int i = 0; i < nargs; i++) res = num_add(vm, res, args[i]);
     return res;
 }
 
 static Value* prim_sub(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs == 0) return make_fixnum(0);
-    if (nargs == 1) return num_sub(make_fixnum(0), args[0]);
+    if (nargs == 1) return num_sub(vm, make_fixnum(0), args[0]);
     Value* res = args[0];
-    for (int i = 1; i < nargs; i++) res = num_sub(res, args[i]);
+    for (int i = 1; i < nargs; i++) res = num_sub(vm, res, args[i]);
     return res;
 }
 
 static Value* prim_mul(VM* vm, int nargs, Value** args) {
-    (void)vm;
     Value* res = make_fixnum(1);
-    for (int i = 0; i < nargs; i++) res = num_mul(res, args[i]);
+    for (int i = 0; i < nargs; i++) res = num_mul(vm, res, args[i]);
     return res;
 }
 
 static Value* prim_num_eq(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 2) return make_boolean(true);
     for (int i = 0; i < nargs - 1; i++) {
-        if (num_compare(args[i], args[i+1]) != 0) return make_boolean(false);
+        if (num_compare(vm, args[i], args[i+1], "=") != 0) return make_boolean(false);
     }
     return make_boolean(true);
 }
 
 static Value* prim_lt(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 2) return make_boolean(true);
     for (int i = 0; i < nargs - 1; i++) {
-        if (num_compare(args[i], args[i+1]) >= 0) return make_boolean(false);
+        if (num_compare(vm, args[i], args[i+1], "<") >= 0) return make_boolean(false);
     }
     return make_boolean(true);
 }
 
 static Value* prim_gt(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 2) return make_boolean(true);
     for (int i = 0; i < nargs - 1; i++) {
-        if (num_compare(args[i], args[i+1]) <= 0) return make_boolean(false);
+        if (num_compare(vm, args[i], args[i+1], ">") <= 0) return make_boolean(false);
     }
     return make_boolean(true);
 }
 
 static Value* prim_zero_p(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs != 1) return make_boolean(false);
-    return make_boolean(is_fixnum(args[0]) && args[0]->as.fixnum == 0);
+    if (nargs != 1) { vm_error(vm, "zero? expects 1 arg"); }
+    ensure_number(vm, args[0], "zero?");
+    if (is_fixnum(args[0])) return make_boolean(args[0]->as.fixnum == 0);
+    if (is_real(args[0])) return make_boolean(args[0]->as.real == 0.0);
+    if (is_bignum(args[0])) return make_boolean(bignum_compare(args[0], bignum_from_long(0)) == 0);
+    return make_boolean(false);
 }
 
 static Value* prim_cons(VM* vm, int nargs, Value** args) {
@@ -433,69 +448,73 @@ static Value* prim_memv(VM* vm, int nargs, Value** args) {
 }
 
 static Value* prim_div(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 1) return make_fixnum(1);
+    for (int i = 0; i < nargs; i++) ensure_number(vm, args[i], "/");
     Value* res = args[0];
     if (nargs == 1) {
         double v = is_real(res) ? res->as.real : (is_fixnum(res) ? (double)res->as.fixnum : bignum_to_double(res));
+        if (v == 0.0) vm_error(vm, "/: division by zero");
         return make_real(1.0 / v);
     }
     for (int i = 1; i < nargs; i++) {
         double v1 = is_real(res) ? res->as.real : (is_fixnum(res) ? (double)res->as.fixnum : bignum_to_double(res));
         double v2 = is_real(args[i]) ? args[i]->as.real : (is_fixnum(args[i]) ? (double)args[i]->as.fixnum : bignum_to_double(args[i]));
+        if (v2 == 0.0) vm_error(vm, "/: division by zero");
         res = make_real(v1 / v2);
     }
     return res;
 }
 
 static Value* prim_le(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 2) return make_boolean(true);
     for (int i = 0; i < nargs - 1; i++) {
-        if (num_compare(args[i], args[i+1]) > 0) return make_boolean(false);
+        if (num_compare(vm, args[i], args[i+1], "<=") > 0) return make_boolean(false);
     }
     return make_boolean(true);
 }
 
 static Value* prim_ge(VM* vm, int nargs, Value** args) {
-    (void)vm;
     if (nargs < 2) return make_boolean(true);
     for (int i = 0; i < nargs - 1; i++) {
-        if (num_compare(args[i], args[i+1]) < 0) return make_boolean(false);
+        if (num_compare(vm, args[i], args[i+1], ">=") < 0) return make_boolean(false);
     }
     return make_boolean(true);
 }
 
 static Value* prim_quotient(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs != 2) return make_fixnum(0);
+    if (nargs != 2) { vm_error(vm, "quotient expects 2 args"); }
+    ensure_number(vm, args[0], "quotient");
+    ensure_number(vm, args[1], "quotient");
     if (is_fixnum(args[0]) && is_fixnum(args[1])) {
-        if (args[1]->as.fixnum == 0) return make_fixnum(0);
+        if (args[1]->as.fixnum == 0) vm_error(vm, "quotient: division by zero");
         return make_fixnum(args[0]->as.fixnum / args[1]->as.fixnum);
     }
     // Fallback to double for now
     double v1 = is_real(args[0]) ? args[0]->as.real : (is_fixnum(args[0]) ? (double)args[0]->as.fixnum : bignum_to_double(args[0]));
     double v2 = is_real(args[1]) ? args[1]->as.real : (is_fixnum(args[1]) ? (double)args[1]->as.fixnum : bignum_to_double(args[1]));
+    if (v2 == 0.0) vm_error(vm, "quotient: division by zero");
     return make_fixnum((long)(v1 / v2));
 }
 
 static Value* prim_remainder(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs != 2) return make_fixnum(0);
+    if (nargs != 2) { vm_error(vm, "remainder expects 2 args"); }
+    ensure_number(vm, args[0], "remainder");
+    ensure_number(vm, args[1], "remainder");
     if (is_fixnum(args[0]) && is_fixnum(args[1])) {
-        if (args[1]->as.fixnum == 0) return make_fixnum(0);
+        if (args[1]->as.fixnum == 0) vm_error(vm, "remainder: division by zero");
         return make_fixnum(args[0]->as.fixnum % args[1]->as.fixnum);
     }
     return make_fixnum(0);
 }
 
 static Value* prim_modulo(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs != 2) return make_fixnum(0);
+    if (nargs != 2) { vm_error(vm, "modulo expects 2 args"); }
+    ensure_number(vm, args[0], "modulo");
+    ensure_number(vm, args[1], "modulo");
     if (is_fixnum(args[0]) && is_fixnum(args[1])) {
         long a = args[0]->as.fixnum;
         long b = args[1]->as.fixnum;
-        if (b == 0) return make_fixnum(0);
+        if (b == 0) vm_error(vm, "modulo: division by zero");
         long r = a % b;
         if ((r > 0 && b < 0) || (r < 0 && b > 0)) r += b;
         return make_fixnum(r);
