@@ -68,10 +68,38 @@ void test_circular_vectors(void) {
     TEST_ASSERT_TRUE(run_scheme(&vm, code)->as.boolean);
 }
 
+#include <time.h>
+
+void test_performance_circular_100(void) {
+    VM vm;
+    vm_init(&vm);
+    vm_register_primitives(&vm);
+    
+    // Create two circular lists of 100 elements
+    const char* code = 
+        "(letrec ((make-list (lambda (n) (if (= n 0) '() (cons n (make-list (- n 1))))))) "
+        "  (let ((a (make-list 100)) "
+        "        (b (make-list 100))) "
+        "    (letrec ((last (lambda (l) (if (null? (cdr l)) l (last (cdr l)))))) "
+        "      (set-cdr! (last a) a) "
+        "      (set-cdr! (last b) b) "
+        "      (equal? a b))))";
+    
+    clock_t start = clock();
+    Value* res = run_scheme(&vm, code);
+    clock_t end = clock();
+    double time_ms = (double)(end - start) * 1000.0 / CLOCKS_PER_SEC;
+    
+    TEST_ASSERT_TRUE(res->as.boolean);
+    printf("Circular equal 100 elements took: %f ms\n", time_ms);
+    TEST_ASSERT_TRUE(time_ms < 1.0);
+}
+
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_circular_list_self);
     RUN_TEST(test_circular_lists_equivalent);
     RUN_TEST(test_circular_vectors);
+    RUN_TEST(test_performance_circular_100);
     return UNITY_END();
 }
