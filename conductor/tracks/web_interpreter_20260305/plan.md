@@ -19,8 +19,8 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: UI Development (xterm.js REPL)' (Protocol in workflow.md) [149712e]
 
 ## Phase 4: Persistence and Example Loaders
-- [ ] Task: Implement LocalStorage persistence for terminal history and virtual files
-- [ ] Task: Add UI buttons to load and execute Scheme examples (`factorial.scm`, `mandelbrot.scm`)
+- [x] Task: Implement LocalStorage persistence for terminal history and virtual files [622b970]
+- [~] Task: Add UI buttons to load and execute Scheme examples (`factorial.scm`, `mandelbrot.scm`)
 - [ ] Task: Implement URL parameter loading (`?load=example.scm`)
 - [ ] Task: Conductor - User Manual Verification 'Phase 4: Persistence and Example Loaders' (Protocol in workflow.md)
 
