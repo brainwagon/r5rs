@@ -37,8 +37,16 @@ static Value* read_str(const char* s) {
 
 static Value* run_scheme(VM* vm, const char* code) {
     Value* expr = read_str(code);
-    Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
-    return vm_run(vm, proto);
+    gc_push_root(expr);
+    Value* nil = make_nil();
+    gc_push_root(nil);
+    Value* proto = compile(expr, nil, vm->syntax_env, -1, false);
+    gc_push_root(proto);
+    Value* result = vm_run(vm, proto);
+    gc_pop_root(); // proto
+    gc_pop_root(); // nil
+    gc_pop_root(); // expr
+    return result;
 }
 
 // Initial placeholder test to verify infrastructure
@@ -230,7 +238,7 @@ void test_pervasive_cont_mutation(void) {
 int main(void) {
     UNITY_BEGIN();
     RUN_TEST(test_pervasive_placeholder);
-    // RUN_TEST(test_pervasive_letrec_reentry); // Fails due to subtle call/cc + letrec interaction (out of scope for now)
+    RUN_TEST(test_pervasive_letrec_reentry);
     RUN_TEST(test_pervasive_hygiene_plus);
     RUN_TEST(test_pervasive_identifier_shadowing);
     RUN_TEST(test_pervasive_callcc_app);

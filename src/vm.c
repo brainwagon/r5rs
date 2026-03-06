@@ -12,6 +12,10 @@ void vm_init(VM* vm) {
     gc_add_root(&vm->globals);
     vm->syntax_env = make_nil();
     gc_add_root(&vm->syntax_env);
+    vm->env = make_nil();
+    gc_add_root(&vm->env);
+    vm->top_proto = NULL;
+    gc_add_root(&vm->top_proto);
     gc_set_stack_root(&vm->stack, &vm->sp);
     vm->running = false;
     vm->jmp_buf_set = false;
@@ -67,17 +71,25 @@ Value* lookup_global(VM* vm, Value* sym) {
 }
 
 void set_global(VM* vm, Value* sym, Value* val) {
+    gc_add_root(&sym);
+    gc_add_root(&val);
     Value* current = vm->globals;
     while (is_pair(current)) {
         Value* entry = current->as.pair.car;
         if (entry->as.pair.car == sym) {
             entry->as.pair.cdr = val;
+            gc_remove_root(&val);
+            gc_remove_root(&sym);
             return;
         }
         current = current->as.pair.cdr;
     }
     Value* entry = make_pair(sym, val);
+    gc_add_root(&entry);
     vm->globals = make_pair(entry, vm->globals);
+    gc_remove_root(&entry);
+    gc_remove_root(&val);
+    gc_remove_root(&sym);
 }
 
 Value* vm_run(VM* vm, Value* top_proto) {
@@ -169,13 +181,18 @@ Value* vm_run(VM* vm, Value* top_proto) {
             }
             case OP_CALLCC: {
                 Value* proc = pop(vm);
+                gc_add_root(&proc);
                 Value* cont = make_continuation(vm->stack, vm->sp, vm->env, vm->top_proto, vm->pc);
+                gc_add_root(&cont);
                 if (is_primitive(proc)) {
                     Value* args[1] = {cont};
                     Value* result = proc->as.primitive(vm, 1, args);
                     push(vm, result);
                 } else if (is_closure(proc)) {
-                    push(vm, make_raw(vm->pc));
+                    Value* raw_pc = make_raw(vm->pc);
+                    gc_add_root(&raw_pc);
+                    push(vm, raw_pc);
+                    gc_remove_root(&raw_pc);
                     push(vm, vm->env);
                     push(vm, vm->top_proto);
                     vm->env = make_pair(make_pair(cont, make_nil()), proc->as.closure.env);
@@ -184,6 +201,8 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 } else {
                     vm_error(vm, "call/cc expects procedure");
                 }
+                gc_remove_root(&cont);
+                gc_remove_root(&proc);
                 break;
             }
             case OP_APPLY: {
@@ -205,11 +224,16 @@ Value* vm_run(VM* vm, Value* top_proto) {
                 nargs = *vm->pc++;
             execute_call: ;
                 Value* proc = pop(vm);
+                gc_add_root(&proc);
                 
                 if (is_primitive(proc)) {
                     Value** args = malloc(sizeof(Value*) * nargs);
-                    for (int i = nargs - 1; i >= 0; i--) args[i] = pop(vm);
+                    for (int i = nargs - 1; i >= 0; i--) {
+                        args[i] = pop(vm);
+                        gc_add_root(&args[i]);
+                    }
                     Value* result = proc->as.primitive(vm, nargs, args);
+                    for (int i = 0; i < nargs; i++) gc_remove_root(&args[i]);
                     free(args);
                     if (op == OP_TCALL) {
                         vm->top_proto = pop(vm);
@@ -223,43 +247,47 @@ Value* vm_run(VM* vm, Value* top_proto) {
                         int fixed = proto->as.proto.num_args;
                         int rest_count = nargs - fixed;
                         Value* r = make_nil();
+                        gc_add_root(&r);
                         for (int i = 0; i < rest_count; i++) {
                             Value* v = pop(vm);
-                            push(vm, r); // protect r for GC
+                            gc_add_root(&v);
                             r = make_pair(v, r);
-                            pop(vm); // remove old r
+                            gc_remove_root(&v);
                         }
                         push(vm, r);
+                        gc_remove_root(&r);
                         nargs = fixed + 1;
                     }
                     
                     // 1. Pop arguments into a frame FIRST
                     Value* frame = make_nil();
+                    gc_add_root(&frame);
                     for (int i = 0; i < nargs; i++) {
                         Value* v = pop(vm);
-                        push(vm, frame); // protect frame for GC
+                        gc_add_root(&v);
                         frame = make_pair(v, frame);
-                        pop(vm); // remove old frame
+                        gc_remove_root(&v);
                     }
 
                     // 2. Handle return information
                     if (op == OP_CALL) {
-                        push(vm, make_raw(vm->pc));
+                        Value* raw_pc = make_raw(vm->pc);
+                        gc_add_root(&raw_pc);
+                        push(vm, raw_pc);
+                        gc_remove_root(&raw_pc);
                         push(vm, vm->env);
                         push(vm, vm->top_proto);
-                    } else { // OP_TCALL
-                        // We skip pushing new return info, so the NEW function will return 
-                        // to the same place the CURRENT one would.
-                        // The return info is already on the stack.
                     }
                     
                     // 3. Set up new environment
                     vm->env = make_pair(frame, proc->as.closure.env);
+                    gc_remove_root(&frame);
                     vm->top_proto = proto;
                     vm->pc = vm->top_proto->as.proto.code;
                 } else if (is_continuation(proc)) {
                     if (nargs != 1) { vm_error(vm, "Continuation expects 1 argument"); }
                     Value* result = pop(vm);
+                    gc_add_root(&result);
                     if (proc->as.cont.sp > vm->stack_cap) {
                         vm->stack_cap = proc->as.cont.sp;
                         vm->stack = realloc(vm->stack, sizeof(Value*) * vm->stack_cap);
@@ -270,9 +298,11 @@ Value* vm_run(VM* vm, Value* top_proto) {
                     vm->top_proto = proc->as.cont.proto;
                     vm->pc = proc->as.cont.pc;
                     push(vm, result);
+                    gc_remove_root(&result);
                 } else {
                     vm_error(vm, "Cannot call non-procedure");
                 }
+                gc_remove_root(&proc);
                 break;
             }
             case OP_RET: {

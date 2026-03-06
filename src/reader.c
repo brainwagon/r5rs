@@ -26,6 +26,7 @@ static Value* read_list(const char** input) {
     
     Value* car = read_sexpr_str(input);
     if (!car) return NULL;
+    gc_push_root(car);
     
     skip_whitespace(input);
     if (**input == '.') {
@@ -33,18 +34,32 @@ static Value* read_list(const char** input) {
         if (isspace(*next) || *next == '(' || *next == ')' || *next == ';' || *next == '\0') {
             (*input)++;
             Value* cdr = read_sexpr_str(input);
-            if (!cdr) return NULL;
+            if (!cdr) {
+                gc_pop_root();
+                return NULL;
+            }
+            gc_push_root(cdr);
             skip_whitespace(input);
             if (**input == ')') {
                 (*input)++;
             }
-            return make_pair(car, cdr);
+            Value* res = make_pair(car, cdr);
+            gc_pop_root(); // cdr
+            gc_pop_root(); // car
+            return res;
         }
     }
     
     Value* cdr = read_list(input);
-    if (!cdr) return NULL;
-    return make_pair(car, cdr);
+    if (!cdr) {
+        gc_pop_root();
+        return NULL;
+    }
+    gc_push_root(cdr);
+    Value* res = make_pair(car, cdr);
+    gc_pop_root(); // cdr
+    gc_pop_root(); // car
+    return res;
 }
 
 static Value* parse_numeric_atom(const char* atom) {
@@ -73,18 +88,35 @@ static Value* parse_numeric_atom(const char* atom) {
     
     if (!isdigit(*p)) return NULL;
     
-    Value* res = bignum_from_long(0);
     Value* ten = bignum_from_long(10);
+    gc_push_root(ten);
+    Value* res = bignum_from_long(0);
+    gc_push_root(res);
     while (*p >= '0' && *p <= '9') {
         Value* digit = bignum_from_long(*p - '0');
-        res = bignum_add(bignum_mul(res, ten), digit);
+        gc_push_root(digit);
+        
+        Value* mul = bignum_mul(res, ten);
+        gc_push_root(mul);
+        
+        Value* next_res = bignum_add(mul, digit);
+        gc_pop_root(); // mul
+        gc_pop_root(); // digit
+        
+        gc_pop_root(); // old res
+        res = next_res;
+        gc_push_root(res);
         p++;
     }
     if (*p == '\0') {
         res->as.bignum.sign = sign;
+        gc_pop_root(); // res
+        gc_pop_root(); // ten
         return res;
     }
     
+    gc_pop_root(); // res
+    gc_pop_root(); // ten
     return NULL;
 }
 
@@ -104,7 +136,14 @@ Value* read_sexpr_str(const char** input) {
     if (c == '\'') {
         (*input)++;
         Value* quoted = read_sexpr_str(input);
-        return make_pair(make_symbol("quote"), make_pair(quoted, make_nil()));
+        if (!quoted) return NULL;
+        gc_push_root(quoted);
+        Value* pair2 = make_pair(quoted, make_nil());
+        gc_pop_root();
+        gc_push_root(pair2);
+        Value* res = make_pair(make_symbol("quote"), pair2);
+        gc_pop_root();
+        return res;
     }
 
     if (c == '"') {
@@ -163,6 +202,8 @@ Value* read_sexpr_str(const char** input) {
         } else if (next == '(') {
             (*input)++;
             Value* lst = read_list(input);
+            if (!lst) return NULL;
+            gc_push_root(lst);
             int count = 0;
             Value* p = lst;
             while (is_pair(p)) {
@@ -175,6 +216,7 @@ Value* read_sexpr_str(const char** input) {
                 vec->as.vector.elements[i] = p->as.pair.car;
                 p = p->as.pair.cdr;
             }
+            gc_pop_root();
             return vec;
         }
     }

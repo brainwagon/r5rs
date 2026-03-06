@@ -19,29 +19,41 @@ static Value* read_str(const char* s) {
     return read_sexpr_str(&s);
 }
 
+static Value* run_scheme(VM* vm, const char* code) {
+    Value* expr = read_str(code);
+    gc_push_root(expr);
+    Value* nil = make_nil();
+    gc_push_root(nil);
+    Value* proto = compile(expr, nil, vm->syntax_env, -1, false);
+    gc_push_root(proto);
+    Value* result = vm_run(vm, proto);
+    gc_pop_root(); // proto
+    gc_pop_root(); // nil
+    gc_pop_root(); // expr
+    return result;
+}
+
 void test_vm_const(void) {
     VM vm;
     vm_init(&vm);
-    Value* expr = read_str("42");
-    Value* proto = compile(expr, make_nil(), make_nil(), -1, false);
-    Value* result = vm_run(&vm, proto);
+    Value* result = run_scheme(&vm, "42");
     TEST_ASSERT_EQUAL(42, result->as.fixnum);
 }
 
 void test_vm_define_ref(void) {
     VM vm;
     vm_init(&vm);
-    vm_run(&vm, compile(read_str("(define x 42)"), make_nil(), make_nil(), -1, false));
-    Value* r2 = vm_run(&vm, compile(read_str("x"), make_nil(), make_nil(), -1, false));
+    run_scheme(&vm, "(define x 42)");
+    Value* r2 = run_scheme(&vm, "x");
     TEST_ASSERT_EQUAL(42, r2->as.fixnum);
 }
 
 void test_vm_if(void) {
     VM vm;
     vm_init(&vm);
-    Value* r1 = vm_run(&vm, compile(read_str("(if #t 1 2)"), make_nil(), make_nil(), -1, false));
+    Value* r1 = run_scheme(&vm, "(if #t 1 2)");
     TEST_ASSERT_EQUAL(1, r1->as.fixnum);
-    Value* r2 = vm_run(&vm, compile(read_str("(if #f 1 2)"), make_nil(), make_nil(), -1, false));
+    Value* r2 = run_scheme(&vm, "(if #f 1 2)");
     TEST_ASSERT_EQUAL(2, r2->as.fixnum);
 }
 

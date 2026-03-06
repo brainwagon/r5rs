@@ -337,7 +337,9 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             Value* transformer = lookup_syntax(syntax_env, car);
             if (transformer) {
                 Value* expanded = macro_expand_with_transformer(transformer, expr);
+                gc_push_root(expanded);
                 compile_expr(pb, expanded, env, syntax_env, tail);
+                gc_pop_root();
                 return;
             }
 
@@ -367,6 +369,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 if (is_pair(expr->as.pair.cdr->as.pair.cdr->as.pair.cdr)) {
                     else_part = expr->as.pair.cdr->as.pair.cdr->as.pair.cdr->as.pair.car;
                 }
+                gc_push_root(else_part);
                 compile_expr(pb, test, env, syntax_env, false);
                 pb_emit(pb, OP_JF);
                 int jf_pos = pb->len;
@@ -387,6 +390,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     pb->code[jump_pos] = (end_pos - jump_pos - 2) >> 8;
                     pb->code[jump_pos + 1] = (end_pos - jump_pos - 2) & 0xFF;
                 }
+                gc_pop_root(); // else_part
                 return;
             }
             if (strcmp(name, "and") == 0) {
@@ -404,8 +408,8 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
             if (strcmp(name, "case") == 0) {
                 Value* key_expr = expr->as.pair.cdr->as.pair.car;
                 Value* clauses = expr->as.pair.cdr->as.pair.cdr;
-                Value* temp_sym = make_symbol("%%case-temp");
-                Value* cond_clauses = make_nil();
+                Value* temp_sym = make_symbol("%%case-temp"); gc_push_root(temp_sym);
+                Value* cond_clauses = make_nil(); gc_push_root(cond_clauses);
                 Value* c = clauses;
                 while (is_pair(c)) {
                     Value* clause = c->as.pair.car;
@@ -413,22 +417,45 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     Value* exprs = clause->as.pair.cdr;
                     Value* cond_clause;
                     if (is_symbol(data) && strcmp(data->as.symbol, "else") == 0) {
-                        cond_clause = make_pair(make_symbol("else"), exprs);
+                        Value* else_sym = make_symbol("else"); gc_push_root(else_sym);
+                        cond_clause = make_pair(else_sym, exprs);
+                        gc_pop_root();
                     } else {
-                        Value* test = make_pair(make_symbol("memv"), make_pair(temp_sym, make_pair(make_pair(make_symbol("quote"), make_pair(data, make_nil())), make_nil())));
+                        Value* quote_sym = make_symbol("quote"); gc_push_root(quote_sym);
+                        Value* q_data = make_pair(quote_sym, make_pair(data, make_nil())); gc_push_root(q_data);
+                        Value* memv_sym = make_symbol("memv"); gc_push_root(memv_sym);
+                        Value* test = make_pair(memv_sym, make_pair(temp_sym, make_pair(q_data, make_nil())));
+                        gc_pop_root(); // memv_sym
+                        gc_pop_root(); // q_data
+                        gc_pop_root(); // quote_sym
                         cond_clause = make_pair(test, exprs);
                     }
+                    gc_push_root(cond_clause);
                     cond_clauses = make_pair(cond_clause, cond_clauses);
+                    gc_pop_root(); // cond_clause
+                    gc_pop_root(); // old cond_clauses
+                    gc_push_root(cond_clauses);
                     c = c->as.pair.cdr;
                 }
-                Value* r_clauses = make_nil();
+                Value* r_clauses = make_nil(); gc_push_root(r_clauses);
                 while (is_pair(cond_clauses)) {
                     r_clauses = make_pair(cond_clauses->as.pair.car, r_clauses);
+                    gc_pop_root(); gc_push_root(r_clauses);
                     cond_clauses = cond_clauses->as.pair.cdr;
                 }
-                Value* cond = make_pair(make_symbol("cond"), r_clauses);
-                Value* let = make_pair(make_symbol("let"), make_pair(make_pair(make_pair(temp_sym, make_pair(key_expr, make_nil())), make_nil()), make_pair(cond, make_nil())));
+                Value* cond_sym = make_symbol("cond"); gc_push_root(cond_sym);
+                Value* cond = make_pair(cond_sym, r_clauses); gc_push_root(cond);
+                Value* let_sym = make_symbol("let"); gc_push_root(let_sym);
+                Value* let = make_pair(let_sym, make_pair(make_pair(make_pair(temp_sym, make_pair(key_expr, make_nil())), make_nil()), make_pair(cond, make_nil())));
+                gc_push_root(let);
                 compile_expr(pb, let, env, syntax_env, tail);
+                gc_pop_root(); // let
+                gc_pop_root(); // let_sym
+                gc_pop_root(); // cond
+                gc_pop_root(); // cond_sym
+                gc_pop_root(); // r_clauses
+                gc_pop_root(); // cond_clauses
+                gc_pop_root(); // temp_sym
                 return;
             }
             if (strcmp(name, "let") == 0) {
@@ -439,52 +466,86 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     Value* name_val = bindings;
                     bindings = cdr->as.pair.cdr->as.pair.car;
                     body = cdr->as.pair.cdr->as.pair.cdr;
-                    Value* vars = make_nil();
-                    Value* vals = make_nil();
+                    Value* vars = make_nil(); gc_push_root(vars);
+                    Value* vals = make_nil(); gc_push_root(vals);
                     Value* b = bindings;
                     while (is_pair(b)) {
                         Value* binding = b->as.pair.car;
                         vars = make_pair(binding->as.pair.car, vars);
+                        gc_pop_root(); gc_pop_root();
+                        gc_push_root(vars); gc_push_root(vals);
                         vals = make_pair(binding->as.pair.cdr->as.pair.car, vals);
+                        gc_pop_root(); gc_pop_root();
+                        gc_push_root(vars); gc_push_root(vals);
                         b = b->as.pair.cdr;
                     }
-                    Value* rvars = make_nil();
-                    Value* rvals = make_nil();
+                    Value* rvars = make_nil(); gc_push_root(rvars);
+                    Value* rvals = make_nil(); gc_push_root(rvals);
                     while (is_pair(vars)) {
                         rvars = make_pair(vars->as.pair.car, rvars);
+                        gc_pop_root(); gc_pop_root();
+                        gc_push_root(rvars); gc_push_root(rvals);
                         rvals = make_pair(vals->as.pair.car, rvals);
+                        gc_pop_root(); gc_pop_root();
+                        gc_push_root(rvars); gc_push_root(rvals);
                         vars = vars->as.pair.cdr;
                         vals = vals->as.pair.cdr;
                     }
-                    // (let tag ((v i) ...) body ...) =>
-                    // ((letrec ((tag (lambda (v ...) body ...))) tag) i ...)
-                    Value* lambda = make_pair(make_symbol("lambda"), make_pair(rvars, body));
-                    Value* letrec_bindings = make_pair(make_pair(name_val, make_pair(lambda, make_nil())), make_nil());
-                    Value* letrec = make_pair(make_symbol("letrec"), make_pair(letrec_bindings, make_pair(name_val, make_nil())));
-                    Value* call = make_pair(letrec, rvals);
+                    Value* lambda_sym = make_symbol("lambda"); gc_push_root(lambda_sym);
+                    Value* lambda = make_pair(lambda_sym, make_pair(rvars, body)); gc_push_root(lambda);
+                    Value* letrec_sym = make_symbol("letrec"); gc_push_root(letrec_sym);
+                    Value* letrec_bindings = make_pair(make_pair(name_val, make_pair(lambda, make_nil())), make_nil()); gc_push_root(letrec_bindings);
+                    Value* letrec = make_pair(letrec_sym, make_pair(letrec_bindings, make_pair(name_val, make_nil()))); gc_push_root(letrec);
+                    Value* call = make_pair(letrec, rvals); gc_push_root(call);
                     compile_expr(pb, call, env, syntax_env, tail);
+                    gc_pop_root(); // call
+                    gc_pop_root(); // letrec
+                    gc_pop_root(); // letrec_bindings
+                    gc_pop_root(); // letrec_sym
+                    gc_pop_root(); // lambda
+                    gc_pop_root(); // lambda_sym
+                    gc_pop_root(); // rvals
+                    gc_pop_root(); // rvars
+                    gc_pop_root(); // vals
+                    gc_pop_root(); // vars
                     return;
                 }
-                Value* vars = make_nil();
-                Value* vals = make_nil();
+                Value* vars = make_nil(); gc_push_root(vars);
+                Value* vals = make_nil(); gc_push_root(vals);
                 Value* b = bindings;
                 while (is_pair(b)) {
                     Value* binding = b->as.pair.car;
                     vars = make_pair(binding->as.pair.car, vars);
+                    gc_pop_root(); gc_pop_root();
+                    gc_push_root(vars); gc_push_root(vals);
                     vals = make_pair(binding->as.pair.cdr->as.pair.car, vals);
+                    gc_pop_root(); gc_pop_root();
+                    gc_push_root(vars); gc_push_root(vals);
                     b = b->as.pair.cdr;
                 }
-                Value* rvars = make_nil();
-                Value* rvals = make_nil();
+                Value* rvars = make_nil(); gc_push_root(rvars);
+                Value* rvals = make_nil(); gc_push_root(rvals);
                 while (is_pair(vars)) {
                     rvars = make_pair(vars->as.pair.car, rvars);
+                    gc_pop_root(); gc_pop_root();
+                    gc_push_root(rvars); gc_push_root(rvals);
                     rvals = make_pair(vals->as.pair.car, rvals);
+                    gc_pop_root(); gc_pop_root();
+                    gc_push_root(rvars); gc_push_root(rvals);
                     vars = vars->as.pair.cdr;
                     vals = vals->as.pair.cdr;
                 }
-                Value* lambda = make_pair(make_symbol("lambda"), make_pair(rvars, body));
-                Value* call = make_pair(lambda, rvals);
+                Value* lambda_sym = make_symbol("lambda"); gc_push_root(lambda_sym);
+                Value* lambda = make_pair(lambda_sym, make_pair(rvars, body)); gc_push_root(lambda);
+                Value* call = make_pair(lambda, rvals); gc_push_root(call);
                 compile_expr(pb, call, env, syntax_env, tail);
+                gc_pop_root(); // call
+                gc_pop_root(); // lambda
+                gc_pop_root(); // lambda_sym
+                gc_pop_root(); // rvals
+                gc_pop_root(); // rvars
+                gc_pop_root(); // vals
+                gc_pop_root(); // vars
                 return;
             }
             if (strcmp(name, "let*") == 0) {
@@ -495,19 +556,26 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 } else {
                     Value* first = bindings->as.pair.car;
                     Value* rest = bindings->as.pair.cdr;
-                    Value* inner = make_pair(make_symbol("let*"), make_pair(rest, body));
-                    Value* let = make_pair(make_symbol("let"), make_pair(make_pair(first, make_nil()), make_pair(inner, make_nil())));
+                    Value* let_star_sym = make_symbol("let*"); gc_push_root(let_star_sym);
+                    Value* inner = make_pair(let_star_sym, make_pair(rest, body)); gc_push_root(inner);
+                    Value* let_sym = make_symbol("let"); gc_push_root(let_sym);
+                    Value* let = make_pair(let_sym, make_pair(make_pair(first, make_nil()), make_pair(inner, make_nil()))); gc_push_root(let);
                     compile_expr(pb, let, env, syntax_env, tail);
+                    gc_pop_root(); // let
+                    gc_pop_root(); // let_sym
+                    gc_pop_root(); // inner
+                    gc_pop_root(); // let_star_sym
                 }
                 return;
             }
             if (strcmp(name, "letrec") == 0) {
                 Value* bindings = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
-                Value* vars = make_nil();
+                Value* vars = make_nil(); gc_push_root(vars);
                 Value* b = bindings;
                 while (is_pair(b)) {
                     vars = make_pair(b->as.pair.car->as.pair.car, vars);
+                    gc_pop_root(); gc_push_root(vars);
                     b = b->as.pair.cdr;
                 }
 
@@ -515,7 +583,7 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 ProtoBuilder sub_pb;
                 pb_init(&sub_pb);
                 
-                Value* new_env = make_pair(vars, env);
+                Value* new_env = make_pair(vars, env); gc_push_root(new_env);
 
                 // Compile sets for each binding
                 b = bindings;
@@ -548,9 +616,13 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 Value* v_ptr = vars;
                 while (is_pair(v_ptr)) { n_args++; v_ptr = v_ptr->as.pair.cdr; }
                 
+                for (int i = 0; i < sub_pb.c_len; i++) gc_push_root(constants[i]);
                 Value* sub_proto = make_proto(code, sub_pb.len, constants, sub_pb.c_len, n_args, false);
+                for (int i = 0; i < sub_pb.c_len; i++) gc_pop_root();
+                
                 free(sub_pb.code);
                 free(sub_pb.constants);
+                gc_push_root(sub_proto);
 
                 // 2. In outer pb, push #f for each var
                 int n = 0;
@@ -568,6 +640,9 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 pb_emit2(pb, p_idx);
                 pb_emit(pb, tail ? OP_TCALL : OP_CALL);
                 pb_emit(pb, (unsigned char)n);
+                gc_pop_root(); // sub_proto
+                gc_pop_root(); // new_env
+                gc_pop_root(); // vars
                 return;
             }
             if (strcmp(name, "define") == 0) {
@@ -578,12 +653,15 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     // (define (foo x) body) => (define foo (lambda (x) body))
                     Value* name_val = sym->as.pair.car;
                     Value* params = sym->as.pair.cdr;
-                    Value* lambda = make_pair(make_symbol("lambda"), make_pair(params, body));
+                    Value* lambda_sym = make_symbol("lambda"); gc_push_root(lambda_sym);
+                    Value* lambda = make_pair(lambda_sym, make_pair(params, body)); gc_push_root(lambda);
                     
                     compile_expr(pb, lambda, env, syntax_env, false);
                     int idx = pb_add_constant(pb, name_val);
                     pb_emit(pb, OP_DEF);
                     pb_emit2(pb, idx);
+                    gc_pop_root(); // lambda
+                    gc_pop_root(); // lambda_sym
                 } else {
                     compile_expr(pb, body->as.pair.car, env, syntax_env, false);
                     int idx = pb_add_constant(pb, sym);
@@ -599,18 +677,19 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 if (is_pair(transformer_expr) && is_symbol(transformer_expr->as.pair.car) && strcmp(transformer_expr->as.pair.car->as.symbol, "syntax-rules") == 0) {
                     Value* literals = transformer_expr->as.pair.cdr->as.pair.car;
                     Value* rules = transformer_expr->as.pair.cdr->as.pair.cdr;
-                    Value* macro = make_macro(literals, rules);
+                    Value* macro = make_macro(literals, rules); gc_push_root(macro);
                     set_global(global_vm_ptr, sym, macro); // TODO: Properly handle syntax env
                     pb_emit(pb, OP_CONST);
                     pb_emit2(pb, pb_add_constant(pb, make_nil()));
                     if (tail) pb_emit(pb, OP_RET);
+                    gc_pop_root(); // macro
                     return;
                 }
             }
             if (strcmp(name, "let-syntax") == 0 || strcmp(name, "letrec-syntax") == 0) {
                 Value* bindings = expr->as.pair.cdr->as.pair.car;
                 Value* body = expr->as.pair.cdr->as.pair.cdr;
-                Value* new_syntax_env = syntax_env;
+                Value* new_syntax_env = syntax_env; gc_push_root(new_syntax_env);
                 Value* b = bindings;
                 while (is_pair(b)) {
                     Value* binding = b->as.pair.car;
@@ -618,11 +697,17 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                     Value* transformer_expr = binding->as.pair.cdr->as.pair.car;
                     Value* literals = transformer_expr->as.pair.cdr->as.pair.car;
                     Value* rules = transformer_expr->as.pair.cdr->as.pair.cdr;
-                    Value* macro = make_macro(literals, rules);
-                    new_syntax_env = make_pair(make_pair(sym, macro), new_syntax_env);
+                    Value* macro = make_macro(literals, rules); gc_push_root(macro);
+                    Value* entry = make_pair(sym, macro); gc_push_root(entry);
+                    new_syntax_env = make_pair(entry, new_syntax_env);
+                    gc_pop_root(); // entry
+                    gc_pop_root(); // macro
+                    gc_pop_root(); // old new_syntax_env
+                    gc_push_root(new_syntax_env);
                     b = b->as.pair.cdr;
                 }
                 compile_body(pb, body, env, new_syntax_env, tail);
+                gc_pop_root(); // new_syntax_env
                 return;
             }
             if (strcmp(name, "set!") == 0) {
@@ -659,12 +744,14 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
                 }
                 if (is_symbol(p)) has_rest = true;
 
-                Value* inner_env = make_pair(params, env);
-                Value* sub_proto = compile(body, inner_env, syntax_env, num_args, has_rest);
+                Value* inner_env = make_pair(params, env); gc_push_root(inner_env);
+                Value* sub_proto = compile(body, inner_env, syntax_env, num_args, has_rest); gc_push_root(sub_proto);
                 int idx = pb_add_constant(pb, sub_proto);
                 pb_emit(pb, OP_CLOSURE);
                 pb_emit2(pb, idx);
                 if (tail) pb_emit(pb, OP_RET);
+                gc_pop_root(); // sub_proto
+                gc_pop_root(); // inner_env
                 return;
             }
         }
@@ -685,6 +772,9 @@ static void compile_expr(ProtoBuilder* pb, Value* expr, Value* env, Value* synta
 }
 
 Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args, bool has_rest) {
+    gc_push_root(expr);
+    gc_push_root(env);
+    gc_push_root(syntax_env);
     ProtoBuilder pb;
     pb_init(&pb);
     bool is_lambda = (num_args >= 0);
@@ -698,8 +788,15 @@ Value* compile(Value* expr, Value* env, Value* syntax_env, int num_args, bool ha
     memcpy(code, pb.code, pb.len);
     Value** constants = malloc(sizeof(Value*) * pb.c_len);
     memcpy(constants, pb.constants, sizeof(Value*) * pb.c_len);
+    
+    for (int i = 0; i < pb.c_len; i++) gc_push_root(constants[i]);
     Value* proto = make_proto(code, pb.len, constants, pb.c_len, (is_lambda ? num_args : 0), has_rest);
+    for (int i = 0; i < pb.c_len; i++) gc_pop_root();
+    
     free(pb.code);
     free(pb.constants);
+    gc_pop_root(); // syntax_env
+    gc_pop_root(); // env
+    gc_pop_root(); // expr
     return proto;
 }

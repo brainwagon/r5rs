@@ -12,6 +12,8 @@
 - **Clang-Tidy**: For static analysis to enforce code style and catch potential bugs early.
 - **Gcov / LCOV**: To measure and track test coverage, ensuring a robust and well-tested codebase.
 
-## Development Platform
-- **POSIX**: Targeting POSIX-compliant systems (Linux, macOS, etc.) for filesystem and REPL interactions.
-- **Vanilla C**: Minimizing external dependencies to maintain the project's goal of being small and embeddable.
+## Web Environment (Web Interpreter Track)
+- **Emscripten**: A toolchain for compiling C/C++ to WebAssembly (Wasm), used to port the Scheme interpreter to the web.
+- **xterm.js**: A front-end component that provides a fully-functional terminal in the browser for the REPL experience.
+- **Web Workers**: To run the Scheme interpreter in a background thread, keeping the main UI responsive.
+- **LocalStorage**: For persisting REPL history and virtual files in the browser.

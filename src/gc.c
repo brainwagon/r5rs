@@ -2,8 +2,9 @@
 #include <vm.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
-#define MAX_ROOTS 1024
+#define MAX_ROOTS 16384
 
 static Value* all_objects = NULL;
 static Value** roots[MAX_ROOTS];
@@ -12,11 +13,30 @@ static int roots_count = 0;
 static Value*** stack_root_ptr = NULL;
 static int* stack_sp_ptr = NULL;
 
+extern void reset_symbol_registry(void);
+
+static Value* protection_stack[MAX_ROOTS];
+static int protection_sp = 0;
+
+void gc_push_root(Value* v) {
+    if (protection_sp >= MAX_ROOTS) {
+        fprintf(stderr, "GC Protection Stack Overflow\n");
+        exit(1);
+    }
+    protection_stack[protection_sp++] = v;
+}
+
+void gc_pop_root(void) {
+    if (protection_sp > 0) protection_sp--;
+}
+
 void gc_init(void) {
     all_objects = NULL;
     roots_count = 0;
+    protection_sp = 0;
     stack_root_ptr = NULL;
     stack_sp_ptr = NULL;
+    reset_symbol_registry();
 }
 
 void gc_shutdown(void) {
@@ -49,12 +69,23 @@ void gc_add_root(Value** root) {
     }
 }
 
+void gc_remove_root(Value** root) {
+    for (int i = 0; i < roots_count; i++) {
+        if (roots[i] == root) {
+            roots[i] = roots[--roots_count];
+            return;
+        }
+    }
+}
+
 void gc_set_stack_root(Value*** stack, int* sp) {
     stack_root_ptr = stack;
     stack_sp_ptr = sp;
 }
 
 Value* gc_alloc(ValueType type) {
+    static int alloc_count = 0;
+    if (alloc_count++ % 10000 == 0) gc_collect();
     Value* v = malloc(sizeof(Value));
     if (!v) {
         vm_error(global_vm_ptr, "Out of memory");
@@ -135,6 +166,7 @@ static void sweep(void) {
             } else if (unreached->type == VAL_BIGNUM) {
                 free(unreached->as.bignum.digits);
             }
+            memset(unreached, 0xEE, sizeof(Value));
             free(unreached);
         } else {
             (*p)->marked = false;
@@ -146,6 +178,9 @@ static void sweep(void) {
 void gc_collect(void) {
     for (int i = 0; i < roots_count; i++) {
         mark_object(*roots[i]);
+    }
+    for (int i = 0; i < protection_sp; i++) {
+        mark_object(protection_stack[i]);
     }
     if (stack_root_ptr && stack_sp_ptr) {
         Value** stack = *stack_root_ptr;

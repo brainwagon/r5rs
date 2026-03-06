@@ -29,5 +29,5 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 ---
 
-- [ ] **Track: Web Interpreter (Emscripten)**
+- [~] **Track: Web Interpreter (Emscripten)**
 *Link: [./tracks/web_interpreter_20260305/](./tracks/web_interpreter_20260305/)*

@@ -150,8 +150,13 @@ static Value* expand_template(Value* template, Value* matches, int ellipsis_idx,
             return res;
         }
         Value* car = expand_template(template->as.pair.car, matches, ellipsis_idx, literals, rename_map, macro_name);
+        gc_push_root(car);
         Value* cdr = expand_template(template->as.pair.cdr, matches, ellipsis_idx, literals, rename_map, macro_name);
-        return make_pair(car, cdr);
+        gc_push_root(cdr);
+        Value* res = make_pair(car, cdr);
+        gc_pop_root();
+        gc_pop_root();
+        return res;
     }
     return template;
 }
@@ -161,19 +166,33 @@ Value* macro_expand_with_transformer(Value* transformer, Value* expr) {
     Value* literals = transformer->as.macro.literals;
     Value* rules = transformer->as.macro.rules;
     Value* macro_name = is_pair(expr) ? expr->as.pair.car : NULL;
+    
+    gc_push_root(transformer);
+    gc_push_root(expr);
+
     while (is_pair(rules)) {
         Value* rule = rules->as.pair.car;
         Value* pattern = rule->as.pair.car;
         Value* template = rule->as.pair.cdr->as.pair.car;
         Value* matches = make_nil();
+        gc_push_root(matches);
         if (is_pair(pattern) && is_pair(expr)) {
             if (match_pattern(pattern->as.pair.cdr, expr->as.pair.cdr, literals, &matches, false)) {
                 Value* rename_map = make_nil();
-                return expand_template(template, matches, -1, literals, &rename_map, macro_name);
+                gc_push_root(rename_map);
+                Value* result = expand_template(template, matches, -1, literals, &rename_map, macro_name);
+                gc_pop_root(); // rename_map
+                gc_pop_root(); // matches
+                gc_pop_root(); // expr
+                gc_pop_root(); // transformer
+                return result;
             }
         }
+        gc_pop_root(); // matches
         rules = rules->as.pair.cdr;
     }
+    gc_pop_root(); // expr
+    gc_pop_root(); // transformer
     return expr;
 }
 

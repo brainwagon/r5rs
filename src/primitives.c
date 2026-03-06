@@ -497,67 +497,85 @@ static Value* prim_modulo(VM* vm, int nargs, Value** args) {
     return make_fixnum(0);
 }
 
+static void register_prim(VM* vm, const char* name, Value* (*fn)(VM*, int, Value**)) {
+    Value* sym = make_symbol(name);
+    gc_push_root(sym);
+    Value* prim = make_primitive(fn);
+    gc_push_root(prim);
+    set_global(vm, sym, prim);
+    gc_pop_root();
+    gc_pop_root();
+}
+
+static void register_keyword(VM* vm, const char* name) {
+    Value* sym = make_symbol(name);
+    gc_push_root(sym);
+    set_global(vm, sym, sym);
+    gc_pop_root();
+}
+
 void vm_register_primitives(VM* vm) {
     // Core keywords
-    set_global(vm, make_symbol("if"), make_symbol("if"));
-    set_global(vm, make_symbol("define"), make_symbol("define"));
-    set_global(vm, make_symbol("set!"), make_symbol("set!"));
-    set_global(vm, make_symbol("lambda"), make_symbol("lambda"));
-    set_global(vm, make_symbol("quote"), make_symbol("quote"));
-    set_global(vm, make_symbol("begin"), make_symbol("begin"));
-    set_global(vm, make_symbol("let"), make_symbol("let"));
-    set_global(vm, make_symbol("cond"), make_symbol("cond"));
+    register_keyword(vm, "if");
+    register_keyword(vm, "define");
+    register_keyword(vm, "set!");
+    register_keyword(vm, "lambda");
+    register_keyword(vm, "quote");
+    register_keyword(vm, "begin");
+    register_keyword(vm, "let");
+    register_keyword(vm, "cond");
 
-    set_global(vm, make_symbol("+"), make_primitive(prim_add));
-    set_global(vm, make_symbol("-"), make_primitive(prim_sub));
-    set_global(vm, make_symbol("*"), make_primitive(prim_mul));
-    set_global(vm, make_symbol("/"), make_primitive(prim_div));
-    set_global(vm, make_symbol("="), make_primitive(prim_num_eq));
-    set_global(vm, make_symbol("<"), make_primitive(prim_lt));
-    set_global(vm, make_symbol(">"), make_primitive(prim_gt));
-    set_global(vm, make_symbol("<="), make_primitive(prim_le));
-    set_global(vm, make_symbol(">="), make_primitive(prim_ge));
-    set_global(vm, make_symbol("quotient"), make_primitive(prim_quotient));
-    set_global(vm, make_symbol("remainder"), make_primitive(prim_remainder));
-    set_global(vm, make_symbol("modulo"), make_primitive(prim_modulo));
-    set_global(vm, make_symbol("not"), make_primitive(prim_not));
-    set_global(vm, make_symbol("zero?"), make_primitive(prim_zero_p));
-    set_global(vm, make_symbol("cons"), make_primitive(prim_cons));
-    set_global(vm, make_symbol("car"), make_primitive(prim_car));
-    set_global(vm, make_symbol("cdr"), make_primitive(prim_cdr));
-    set_global(vm, make_symbol("list"), make_primitive(prim_list));
-    set_global(vm, make_symbol("pair?"), make_primitive(prim_pair_p));
-    set_global(vm, make_symbol("symbol?"), make_primitive(prim_symbol_p));
-    set_global(vm, make_symbol("number?"), make_primitive(prim_number_p));
-    set_global(vm, make_symbol("boolean?"), make_primitive(prim_boolean_p));
-    set_global(vm, make_symbol("null?"), make_primitive(prim_null_p));
-    set_global(vm, make_symbol("eq?"), make_primitive(prim_eq_p));
-    set_global(vm, make_symbol("eqv?"), make_primitive(prim_eqv_p));
-    set_global(vm, make_symbol("equal?"), make_primitive(prim_equal_p));
-    set_global(vm, make_symbol("memq"), make_primitive(prim_memq));
-    set_global(vm, make_symbol("memv"), make_primitive(prim_memv));
-    set_global(vm, make_symbol("append"), make_primitive(prim_append));
-    set_global(vm, make_symbol("string->symbol"), make_primitive(prim_string_to_symbol));
-    set_global(vm, make_symbol("symbol->string"), make_primitive(prim_symbol_to_string));
+    register_prim(vm, "+", prim_add);
+    register_prim(vm, "-", prim_sub);
+    register_prim(vm, "*", prim_mul);
+    register_prim(vm, "/", prim_div);
+    register_prim(vm, "=", prim_num_eq);
+    register_prim(vm, "<", prim_lt);
+    register_prim(vm, ">", prim_gt);
+    register_prim(vm, "<=", prim_le);
+    register_prim(vm, ">=", prim_ge);
+    register_prim(vm, "quotient", prim_quotient);
+    register_prim(vm, "remainder", prim_remainder);
+    register_prim(vm, "modulo", prim_modulo);
+    register_prim(vm, "not", prim_not);
+    register_prim(vm, "zero?", prim_zero_p);
+    register_prim(vm, "cons", prim_cons);
+    register_prim(vm, "car", prim_car);
+    register_prim(vm, "cdr", prim_cdr);
+    register_prim(vm, "list", prim_list);
+    register_prim(vm, "pair?", prim_pair_p);
+    register_prim(vm, "symbol?", prim_symbol_p);
+    register_prim(vm, "number?", prim_number_p);
+    register_prim(vm, "boolean?", prim_boolean_p);
+    register_prim(vm, "null?", prim_null_p);
+    register_prim(vm, "eq?", prim_eq_p);
+    register_prim(vm, "eqv?", prim_eqv_p);
+    register_prim(vm, "equal?", prim_equal_p);
+    register_prim(vm, "memq", prim_memq);
+    register_prim(vm, "memv", prim_memv);
+    register_prim(vm, "append", prim_append);
+    register_prim(vm, "string->symbol", prim_string_to_symbol);
+    register_prim(vm, "symbol->string", prim_symbol_to_string);
 
-    set_global(vm, make_symbol("make-string"), make_primitive(prim_make_string));
+    register_prim(vm, "make-string", prim_make_string);
 
-    set_global(vm, make_symbol("string-length"), make_primitive(prim_string_length));
-    set_global(vm, make_symbol("string-ref"), make_primitive(prim_string_ref));
-    set_global(vm, make_symbol("string-set!"), make_primitive(prim_string_set));
-    set_global(vm, make_symbol("make-vector"), make_primitive(prim_make_vector));
-    set_global(vm, make_symbol("vector-length"), make_primitive(prim_vector_length));
-    set_global(vm, make_symbol("vector-ref"), make_primitive(prim_vector_ref));
-    set_global(vm, make_symbol("vector-set!"), make_primitive(prim_vector_set));
-    set_global(vm, make_symbol("char?"), make_primitive(prim_char_p));
-    set_global(vm, make_symbol("char->integer"), make_primitive(prim_char_integer));
-    set_global(vm, make_symbol("integer->char"), make_primitive(prim_integer_char));
-    set_global(vm, make_symbol("char-alphabetic?"), make_primitive(prim_char_alphabetic_p));
-    set_global(vm, make_symbol("char-numeric?"), make_primitive(prim_char_numeric_p));
-    set_global(vm, make_symbol("char-whitespace?"), make_primitive(prim_char_whitespace_p));
-    set_global(vm, make_symbol("char-upper-case?"), make_primitive(prim_char_upper_case_p));
-    set_global(vm, make_symbol("char-lower-case?"), make_primitive(prim_char_lower_case_p));
-    set_global(vm, make_symbol("display"), make_primitive(prim_display));
-    set_global(vm, make_symbol("write"), make_primitive(prim_write));
-    set_global(vm, make_symbol("newline"), make_primitive(prim_newline));
+    register_prim(vm, "string-length", prim_string_length);
+    register_prim(vm, "string-ref", prim_string_ref);
+    register_prim(vm, "string-set!", prim_string_set);
+    register_prim(vm, "make-vector", prim_make_vector);
+    register_prim(vm, "vector-length", prim_vector_length);
+    register_prim(vm, "vector-ref", prim_vector_ref);
+    register_prim(vm, "vector-set!", prim_vector_set);
+    register_prim(vm, "char?", prim_char_p);
+    register_prim(vm, "char->integer", prim_char_integer);
+    register_prim(vm, "integer->char", prim_integer_char);
+    register_prim(vm, "char-alphabetic?", prim_char_alphabetic_p);
+    register_prim(vm, "char-numeric?", prim_char_numeric_p);
+    register_prim(vm, "char-whitespace?", prim_char_whitespace_p);
+    register_prim(vm, "char-upper-case?", prim_char_upper_case_p);
+    register_prim(vm, "char-lower-case?", prim_char_lower_case_p);
+    register_prim(vm, "display", prim_display);
+    register_prim(vm, "write", prim_write);
+    register_prim(vm, "newline", prim_newline);
 }
+

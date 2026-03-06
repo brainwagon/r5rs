@@ -10,9 +10,9 @@ WEB_DIR = web
 TEST_DIR = tests
 UNITY_DIR = tests/unity
 
-SRCS = $(wildcard $(SRC_DIR)/*.c)
+SRCS = $(filter-out $(SRC_DIR)/web_main.c, $(wildcard $(SRC_DIR)/*.c))
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
-WEB_SRCS = $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/terminal.c, $(SRCS))
+WEB_SRCS = $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/terminal.c, $(wildcard $(SRC_DIR)/*.c))
 
 TEST_SRCS = $(wildcard $(TEST_DIR)/test_*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(TEST_DIR)/%, $(TEST_SRCS))
@@ -27,7 +27,7 @@ scheme: $(OBJS)
 
 web: $(WEB_DIR)/scheme.js
 
-$(WEB_DIR)/scheme.js: $(WEB_SRCS) $(SRC_DIR)/web_main.c
+$(WEB_DIR)/scheme.js: $(WEB_SRCS)
 	@mkdir -p $(WEB_DIR)
 	$(EMCC) $(EMFLAGS) $^ -o $@
 

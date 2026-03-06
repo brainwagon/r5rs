@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <emscripten.h>
 #include <scheme.h>
 #include <vm.h>
@@ -24,6 +25,10 @@ void init_scheme() {
         // We'll use a simplified version of load_file here or refactor load_file
         // For now, let's just assume it will be loaded by the worker
     }
+}
+
+int main() {
+    return 0;
 }
 
 EMSCRIPTEN_KEEPALIVE
