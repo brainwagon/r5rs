@@ -271,8 +271,11 @@ static Value* prim_eqv_p(VM* vm, int nargs, Value** args) {
     if (a == b) return make_boolean(true);
     if (a->type != b->type) return make_boolean(false);
     if (is_nil(a)) return make_boolean(true);
+    if (is_boolean(a)) return make_boolean(a->as.boolean == b->as.boolean);
     if (is_fixnum(a)) return make_boolean(a->as.fixnum == b->as.fixnum);
     if (is_char(a)) return make_boolean(a->as.character == b->as.character);
+    if (is_real(a)) return make_boolean(a->as.real == b->as.real);
+    if (is_bignum(a)) return make_boolean(bignum_compare(a, b) == 0);
     return make_boolean(false);
 }
 
