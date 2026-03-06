@@ -31,8 +31,3 @@ This file tracks all major tracks for the project. Each track has its own detail
 
 - [~] **Track: Web Interpreter (Emscripten)**
 *Link: [./tracks/web_interpreter_20260305/](./tracks/web_interpreter_20260305/)*
-
----
-
-- [x] **Track: modify equal? to support circular structures**
-*Link: [./tracks/circular_equal_20260306/](./tracks/circular_equal_20260306/)*
