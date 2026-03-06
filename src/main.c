@@ -145,6 +145,42 @@ static void repl(VM* vm) {
     printf("\nGoodbye!\n");
 }
 
+static void usage(const char* prog) {
+    printf("Usage: %s [options] [file ...]\n", prog);
+    printf("Options:\n");
+    printf("  -e, --eval <expr>  Evaluate expression and print result\n");
+    printf("  -h, --help         Display this help message\n");
+    printf("  -v, --version      Display version information\n");
+}
+
+static void eval_str(VM* vm, const char* str, bool print) {
+    if (setjmp(vm->error_jmp) != 0) {
+        vm->jmp_buf_set = false;
+        return;
+    }
+    vm->jmp_buf_set = true;
+
+    const char* p = str;
+    while (p && *p) {
+        while (*p && isspace(*p)) p++;
+        if (!*p) break;
+        
+        Value* expr = read_sexpr_str(&p);
+        if (!expr) break;
+        
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
+        Value* result = vm_run(vm, proto);
+        
+        if (print) {
+            fprint_value(vm->out, result, true);
+            fprintf(vm->out, "\n");
+        }
+        
+        gc_collect();
+    }
+    vm->jmp_buf_set = false;
+}
+
 int main(int argc, char** argv) {
     gc_init();
     VM vm;
@@ -155,11 +191,36 @@ int main(int argc, char** argv) {
     // Load prelude
     load_file(&vm, "prelude.scm", true);
     
-    if (argc > 1) {
-        for (int i = 1; i < argc; i++) {
-            load_file(&vm, argv[i], true);
+    int arg_idx = 1;
+    bool ran_something = false;
+    
+    while (arg_idx < argc) {
+        const char* arg = argv[arg_idx];
+        if (strcmp(arg, "-e") == 0 || strcmp(arg, "--eval") == 0) {
+            if (arg_idx + 1 >= argc) {
+                fprintf(stderr, "Error: %s requires an argument\n", arg);
+                return 1;
+            }
+            eval_str(&vm, argv[++arg_idx], true);
+            ran_something = true;
+        } else if (strcmp(arg, "-h") == 0 || strcmp(arg, "--help") == 0) {
+            usage(argv[0]);
+            return 0;
+        } else if (strcmp(arg, "-v") == 0 || strcmp(arg, "--version") == 0) {
+            printf("R5RS Scheme VM v0.1.0\n");
+            return 0;
+        } else if (arg[0] == '-') {
+            fprintf(stderr, "Error: Unknown option %s\n", arg);
+            usage(argv[0]);
+            return 1;
+        } else {
+            load_file(&vm, arg, true);
+            ran_something = true;
         }
-    } else {
+        arg_idx++;
+    }
+    
+    if (!ran_something) {
         repl(&vm);
     }
     
