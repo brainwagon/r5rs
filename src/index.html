@@ -64,13 +64,20 @@
 
         const client = new SchemeClient();
         
+        // Signal ready after some delay (for demo, in real it should wait for worker init)
+        setTimeout(() => {
+            term.writeln('Worker Ready.');
+            term.write('scheme> ');
+        }, 500);
+
         let currentLine = '';
         term.onData(e => {
             switch (e) {
                 case '\r': // Enter
                     term.write('\r\n');
-                    if (currentLine.trim().length > 0) {
-                        client.execute(currentLine)
+                    const trimmed = currentLine.trim();
+                    if (trimmed.length > 0) {
+                        client.execute(trimmed)
                             .then(result => {
                                 term.writeln(result);
                                 term.write('scheme> ');
@@ -79,10 +86,10 @@
                                 term.writeln('\x1b[31mError: ' + err + '\x1b[0m');
                                 term.write('scheme> ');
                             });
-                        currentLine = '';
                     } else {
                         term.write('scheme> ');
                     }
+                    currentLine = '';
                     break;
                 case '\u007F': // Backspace (DEL)
                     if (currentLine.length > 0) {
