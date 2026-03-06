@@ -1,15 +1,18 @@
 CC = gcc
+EMCC = emcc
 CFLAGS = -std=c99 -Wall -Wextra -Werror -Iinclude -fprofile-arcs -ftest-coverage
-LDFLAGS = -lgcov
+EMFLAGS = -std=c99 -Wall -Wextra -Iinclude -s WASM=1 -s NO_EXIT_RUNTIME=1 -s "EXPORTED_RUNTIME_METHODS=['ccall', 'cwrap']" -s "EXPORTED_FUNCTIONS=['_malloc', '_free', '_main']"
 
 SRC_DIR = src
 INC_DIR = include
 OBJ_DIR = obj
+WEB_DIR = web
 TEST_DIR = tests
 UNITY_DIR = tests/unity
 
 SRCS = $(wildcard $(SRC_DIR)/*.c)
 OBJS = $(patsubst $(SRC_DIR)/%.c, $(OBJ_DIR)/%.o, $(SRCS))
+WEB_SRCS = $(filter-out $(SRC_DIR)/main.c $(SRC_DIR)/terminal.c, $(SRCS))
 
 TEST_SRCS = $(wildcard $(TEST_DIR)/test_*.c)
 TEST_BINS = $(patsubst $(TEST_DIR)/%.c, $(TEST_DIR)/%, $(TEST_SRCS))
@@ -21,6 +24,12 @@ all: scheme $(TEST_BINS)
 
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+web: $(WEB_DIR)/scheme.js
+
+$(WEB_DIR)/scheme.js: $(WEB_SRCS) $(SRC_DIR)/web_main.c
+	@mkdir -p $(WEB_DIR)
+	$(EMCC) $(EMFLAGS) $^ -o $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 	@mkdir -p $(OBJ_DIR)
@@ -40,6 +49,6 @@ $(TEST_DIR)/%: $(TEST_DIR)/%.c $(filter-out $(OBJ_DIR)/main.o, $(OBJS)) $(UNITY_
 	$(CC) $(CFLAGS) -I$(UNITY_DIR) $^ -o $@ $(LDFLAGS)
 
 clean:
-	rm -rf $(OBJ_DIR) $(TEST_BINS) scheme *.gcov
+	rm -rf $(OBJ_DIR) $(WEB_DIR) $(TEST_BINS) scheme *.gcov
 
 .PHONY: all test clean
