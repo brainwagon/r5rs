@@ -25,13 +25,17 @@ all: scheme $(TEST_BINS)
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
-web: $(WEB_DIR)/scheme.js $(WEB_DIR)/web_worker.js
+web: $(WEB_DIR)/scheme.js $(WEB_DIR)/web_worker.js $(WEB_DIR)/web_client.js
 
 $(WEB_DIR)/scheme.js: $(WEB_SRCS)
 	@mkdir -p $(WEB_DIR)
 	$(EMCC) $(EMFLAGS) $^ -o $@
 
 $(WEB_DIR)/web_worker.js: $(SRC_DIR)/web_worker.js
+	@mkdir -p $(WEB_DIR)
+	cp $< $@
+
+$(WEB_DIR)/web_client.js: $(SRC_DIR)/web_client.js
 	@mkdir -p $(WEB_DIR)
 	cp $< $@
 
