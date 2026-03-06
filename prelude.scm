@@ -120,20 +120,8 @@
 ;;; Equalities
 (define (eq? a b) (eqv? a b))
 
-(define (equal? a b)
-  (cond ((eqv? a b) #t)
-        ((and (pair? a) (pair? b))
-         (and (equal? (car a) (car b)) (equal? (cdr a) (cdr b))))
-        ((and (string? a) (string? b))
-         (string=? a b))
-        ((and (vector? a) (vector? b))
-         (let ((len (vector-length a)))
-           (and (= len (vector-length b))
-                (let loop ((i 0))
-                  (if (= i len) #t
-                      (and (equal? (vector-ref a i) (vector-ref b i))
-                           (loop (+ i 1))))))))
-        (else #f)))
+;;; equal? is provided as a C primitive (prim_equal_p) which handles
+;;; pairs, strings, vectors, and delegates to eqv? for other types.
 
 ;;; Character procedures
 (define (char=? a b) (eqv? a b))

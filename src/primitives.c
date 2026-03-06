@@ -1,11 +1,15 @@
+#define _POSIX_C_SOURCE 200809L
 #include <scheme.h>
 #include <vm.h>
 #include <bignum.h>
+#include <reader.h>
+#include <compiler.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 #include <limits.h>
 #include <ctype.h>
+#include <unistd.h>
 
 static Value* num_add(Value* a, Value* b) {
     if (is_fixnum(a) && is_fixnum(b)) {
@@ -197,20 +201,21 @@ static Value* prim_null_p(VM* vm, int nargs, Value** args) {
 }
 
 static Value* prim_display(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs >= 1) fprint_value(stdout, args[0], false);
+    if (nargs >= 1) fprint_value(vm->out, args[0], false);
     return make_nil();
 }
 
 static Value* prim_write(VM* vm, int nargs, Value** args) {
-    (void)vm;
-    if (nargs >= 1) fprint_value(stdout, args[0], true);
+    if (nargs >= 1) fprint_value(vm->out, args[0], true);
     return make_nil();
 }
 
 static Value* prim_newline(VM* vm, int nargs, Value** args) {
-    (void)vm; (void)nargs; (void)args;
-    fprintf(stdout, "\n");
+    (void)nargs; (void)args;
+    if (isatty(fileno(vm->out)))
+        fprintf(vm->out, "\r\n");
+    else
+        fprintf(vm->out, "\n");
     return make_nil();
 }
 
@@ -250,6 +255,7 @@ static Value* prim_eqv_p(VM* vm, int nargs, Value** args) {
     Value* b = args[1];
     if (a == b) return make_boolean(true);
     if (a->type != b->type) return make_boolean(false);
+    if (is_nil(a)) return make_boolean(true);
     if (is_fixnum(a)) return make_boolean(a->as.fixnum == b->as.fixnum);
     if (is_char(a)) return make_boolean(a->as.character == b->as.character);
     return make_boolean(false);
@@ -514,6 +520,33 @@ static void register_keyword(VM* vm, const char* name) {
     gc_pop_root();
 }
 
+static Value* prim_load(VM* vm, int nargs, Value** args) {
+    if (nargs != 1 || !is_string(args[0])) { vm_error(vm, "load expects 1 string"); }
+    const char* filename = args[0]->as.string.str;
+    FILE* f = fopen(filename, "r");
+    if (!f) { vm_error(vm, "load: cannot open file"); }
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    char* content = malloc(size + 1);
+    fread(content, 1, size, f);
+    content[size] = '\0';
+    fclose(f);
+    Value* result = make_nil();
+    const char* p = content;
+    while (p && *p) {
+        while (*p && isspace(*p)) p++;
+        if (!*p) break;
+        Value* expr = read_sexpr_str(&p);
+        if (!expr) break;
+        Value* proto = compile(expr, make_nil(), vm->syntax_env, -1, false);
+        result = vm_run(vm, proto);
+        gc_collect();
+    }
+    free(content);
+    return result;
+}
+
 void vm_register_primitives(VM* vm) {
     // Core keywords
     register_keyword(vm, "if");
@@ -525,6 +558,7 @@ void vm_register_primitives(VM* vm) {
     register_keyword(vm, "let");
     register_keyword(vm, "cond");
 
+    register_prim(vm, "load", prim_load);
     register_prim(vm, "+", prim_add);
     register_prim(vm, "-", prim_sub);
     register_prim(vm, "*", prim_mul);
