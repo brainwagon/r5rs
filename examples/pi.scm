@@ -52,6 +52,6 @@
         (newline))))
 
 ;; --- Example Usage ---
-;; Generates 150 digits of Pi
-(print-pi 1000000)
+;; Generates 1000 digits of Pi
+(print-pi 1000)
 
