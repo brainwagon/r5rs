@@ -26,18 +26,7 @@
                               (loop (+ col 1) 
                                     (+ total (solve (+ row 1) (cons (cons row col) positions))))
                               (loop (+ col 1) total))))))))
-      (let ((solutions (solve 0 '())))
-                                (if (= n 1) 1
-                                    (let ((unique-solutions (make-hash)))
-                                        (for-each (lambda (sol) 
-                                                    (let* ((rotated (rotate sol))
-                                                           (reflected (reflect sol)))
-                                                        (if (and (not (hash-ref unique-solutions sol #f))
-                                                                 (not (hash-ref unique-solutions rotated #f))
-                                                                 (not (hash-ref unique-solutions reflected #f)))
-                                                            (hash-set! unique-solutions sol #t))))
-                                                  solutions)
-                                        (hash-count unique-solutions))))))
+      (solve 0 '()))))
 
 ;;; Test Suite
 (define test
