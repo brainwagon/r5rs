@@ -21,3 +21,8 @@ tests/test_vm_data
 *.gcno
 *.gcov
 web/scheme.js
+
+# LLM files
+CLAUDE.md
+.claude/
+conductor/
