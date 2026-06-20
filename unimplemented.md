@@ -2,9 +2,6 @@
 
 This list contains R5RS procedures and features that are currently unimplemented in this Scheme implementation.
 
-## 6.1 Equalities
-- `equal?` - Partially implemented (handles pairs, strings, vectors, and atoms, but may not handle circular structures).
-
 ## 6.2 Numbers
 - `complex?`, `rational?`, `integer?` - Predicates for the numeric tower.
 - `exact?`, `inexact?` - Exactness predicates.
@@ -44,4 +41,3 @@ This list contains R5RS procedures and features that are currently unimplemented
 
 ## Macros
 - `define-syntax` - Top-level macro definitions (partially implemented, doesn't handle all R5RS syntax).
-- `let-syntax`, `letrec-syntax` - Local macro definitions (implemented in compiler).
